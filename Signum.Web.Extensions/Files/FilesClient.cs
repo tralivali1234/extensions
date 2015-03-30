@@ -19,6 +19,7 @@ using System.Linq.Expressions;
 using Signum.Engine.DynamicQuery;
 using Signum.Utilities.ExpressionTrees;
 using Signum.Web.PortableAreas;
+using Signum.Web.Mappings;
 
 namespace Signum.Web.Files
 {

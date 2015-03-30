@@ -29,6 +29,7 @@ using Signum.Web.Basic;
 using Signum.Entities.Processes;
 using Signum.Web.Cultures;
 using Signum.Web.Templating;
+using Signum.Web.Mappings;
 
 namespace Signum.Web.Mailing
 {
@@ -167,7 +168,7 @@ namespace Signum.Web.Mailing
 
                 TasksSetWebMailBody += WebMailProcessor.AssertNoUntrusted;
                 TasksSetWebMailBody += WebMailProcessor.FilePathToCid;
-
+                
                 Navigator.EntitySettings<EmailMessageEntity>().MappingMain.AsEntityMapping()
                     .RemoveProperty(a => a.Body)
                     .SetProperty(a => a.Body, ctx =>

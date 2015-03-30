@@ -22,6 +22,7 @@ using Signum.Entities.Basics;
 using Signum.Web.Omnibox;
 using Signum.Entities.Omnibox;
 using Signum.Entities.Help;
+using Signum.Web.Mappings;
 
 namespace Signum.Web.Help
 {
@@ -64,7 +65,7 @@ namespace Signum.Web.Help
                     new EntitySettings<OperationHelpEntity>(),
                     new EmbeddedEntitySettings<QueryColumnHelpEntity>(),
                 });
-
+                
                 Navigator.EmbeddedEntitySettings<PropertyRouteHelpEntity>().MappingDefault.AsEntityMapping()
                     .SetProperty(a => a.Property, ctx =>
                     {

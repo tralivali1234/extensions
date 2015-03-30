@@ -20,6 +20,7 @@ using Signum.Entities.Basics;
 using Signum.Engine.Authorization;
 using Signum.Engine.Excel;
 using Signum.Entities.UserAssets;
+using Signum.Web.Mappings;
 
 namespace Signum.Web.Chart
 {

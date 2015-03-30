@@ -24,6 +24,7 @@ using Signum.Engine.Authorization;
 using Signum.Engine.UserAssets;
 using Signum.Entities.UserAssets;
 using Signum.Web.UserAssets;
+using Signum.Web.Mappings;
 
 
 namespace Signum.Web.UserAssets

@@ -27,6 +27,7 @@ using Signum.Web.UserQueries;
 using Newtonsoft.Json.Linq;
 using Signum.Web.UserAssets;
 using Signum.Entities.UserAssets;
+using Signum.Web.Mappings;
 
 namespace Signum.Web.Chart
 {

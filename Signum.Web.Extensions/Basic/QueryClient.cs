@@ -8,6 +8,7 @@ using System.Reflection;
 using Signum.Utilities.Reflection;
 using Signum.Utilities;
 using Signum.Entities.Basics;
+using Signum.Web.Mappings;
 
 namespace Signum.Web.Basic
 {

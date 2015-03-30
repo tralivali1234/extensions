@@ -11,6 +11,7 @@ using Signum.Engine;
 using System.Web.Mvc;
 using Signum.Entities.Authorization;
 using Signum.Services;
+using Signum.Web.Mappings;
 
 namespace Signum.Web.Auth
 {

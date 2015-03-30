@@ -19,6 +19,7 @@ using System.Web.Routing;
 using Signum.Engine.Basics;
 using Signum.Web.Basic;
 using Signum.Web.Omnibox;
+using Signum.Web.Mappings;
 
 namespace Signum.Web.AuthAdmin
 {

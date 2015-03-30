@@ -20,6 +20,7 @@ using System.Web;
 using Signum.Utilities.Reflection;
 using Signum.Web.Omnibox;
 using Signum.Web.AuthAdmin;
+using Signum.Web.Mappings;
 
 namespace Signum.Web.Auth
 {

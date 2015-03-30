@@ -5,6 +5,7 @@ using System.Web;
 using System.Web.Mvc;
 using Signum.Entities.UserAssets;
 using Signum.Utilities;
+using Signum.Web.Mappings;
 
 namespace Signum.Web.UserAssets
 {
