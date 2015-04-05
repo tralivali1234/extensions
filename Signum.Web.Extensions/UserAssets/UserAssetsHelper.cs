@@ -27,13 +27,14 @@ namespace Signum.Web.UserAssets
             }
         }
 
-        public static string GetTokenString(MappingContext<QueryTokenEntity> ctx)
+        public static string GetTokenString(ParseContext<QueryTokenEntity> ctx)
         {
-            return ctx.Inputs.Keys
-                .OrderBy(k => int.Parse(k.After("ddlTokens_")))
-                .Select(k => ctx.Inputs[k])
-                .TakeWhile(k => k.HasText())
-                .ToString(".");
+            throw new InvalidOperationException();
+            //return ctx.Inputs.Keys
+            //    .OrderBy(k => int.Parse(k.After("ddlTokens_")))
+            //    .Select(k => ctx.Inputs[k])
+            //    .TakeWhile(k => k.HasText())
+            //    .ToString(".");
         }
     }
 }

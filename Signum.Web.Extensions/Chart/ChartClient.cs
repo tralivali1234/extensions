@@ -73,7 +73,7 @@ namespace Signum.Web.Chart
         }
 
         public static EntityMapping<ChartColumnEntity> MappingChartColumn = new EntityMapping<ChartColumnEntity>(true)
-            .SetProperty(ct => ct.Token, ctx =>
+            .SetProperty(ct => ct.Token, new Mapping<QueryTokenEntity>(ctx =>
             {
                 var tokenName = UserAssetsHelper.GetTokenString(ctx);
 
@@ -91,18 +91,18 @@ namespace Signum.Web.Chart
                     token = token.Parent;
 
                 return new QueryTokenEntity(token);
-            })
-            .SetProperty(ct => ct.DisplayName, ctx =>
+            }, null))
+            .SetProperty(ct => ct.DisplayName, new Mapping<string>(ctx =>
             {
-                if (string.IsNullOrEmpty(ctx.Input))
+                if (ctx.JToken == null)
                     return ctx.None();
 
-                return ctx.Input;
-            });
+                return ctx.JToken.Value<string>();
+            }, null));
 
         public static EntityMapping<ChartRequest> MappingChartRequest = new EntityMapping<ChartRequest>(true)
-            .SetProperty(cr => cr.Filters, ctx => ExtractChartFilters(ctx))
-            .SetProperty(cr => cr.Orders, ctx => ExtractChartOrders(ctx))
+            .SetProperty(cr => cr.Filters, new Mapping<List<Entities.DynamicQuery.Filter>>(ctx => ExtractChartFilters(ctx), null))
+            .SetProperty(cr => cr.Orders, new Mapping<List<Entities.DynamicQuery.Order>>(ctx => ExtractChartOrders(ctx), null))
             .SetProperty(cb => cb.Columns, new MListCorrelatedOrDefaultMapping<ChartColumnEntity>(MappingChartColumn));
 
 
@@ -113,33 +113,35 @@ namespace Signum.Web.Chart
             {
             }
 
-            public MListCorrelatedOrDefaultMapping(Mapping<S> elementMapping)
+            public MListCorrelatedOrDefaultMapping(IMapping<S> elementMapping)
                 : base(elementMapping)
             {
             }
 
-            public override MList<S> GetValue(MappingContext<MList<S>> ctx)
+            public override MList<S> ParseJson(ParseContext<MList<S>> ctx)
             {
                 MList<S> list = ctx.Value;
                 int i = 0;
 
-                foreach (MappingContext<S> itemCtx in GenerateItemContexts(ctx).OrderBy(mc => mc.Prefix.Substring(mc.Prefix.LastIndexOf("_") + 1).ToInt().Value))
-                {
-                    if (i < list.Count)
-                    {
-                        itemCtx.Value = list[i];
-                        itemCtx.Value = ElementMapping(itemCtx);
+                throw new NotImplementedException();
 
-                        ctx.AddChild(itemCtx);
-                    }
-                    i++;
-                }
+                //foreach (ParseContext<S> itemCtx in GenerateItemContexts(ctx).OrderBy(mc => mc.Prefix.Substring(mc.Prefix.LastIndexOf("_") + 1).ToInt().Value))
+                //{
+                //    if (i < list.Count)
+                //    {
+                //        itemCtx.CurrentValue = list[i];
+                //        itemCtx.CurrentValue = ElementMapping(itemCtx);
+
+                //        ctx.AddChild(itemCtx);
+                //    }
+                //    i++;
+                //}
 
                 return list;
             }
         }
 
-        static List<Entities.DynamicQuery.Filter> ExtractChartFilters(MappingContext<List<Entities.DynamicQuery.Filter>> ctx)
+        static List<Entities.DynamicQuery.Filter> ExtractChartFilters(ParseContext<List<Entities.DynamicQuery.Filter>> ctx)
         {
             var qd = DynamicQueryManager.Current.QueryDescription(
                 Finder.ResolveQueryName(ctx.Controller.ControllerContext.HttpContext.Request.Params["webQueryName"]));
@@ -150,7 +152,7 @@ namespace Signum.Web.Chart
                 .Select(fo => fo.ToFilter()).ToList();
         }
 
-        static List<Order> ExtractChartOrders(MappingContext<List<Order>> ctx)
+        static List<Order> ExtractChartOrders(ParseContext<List<Order>> ctx)
         {
             var qd = DynamicQueryManager.Current.QueryDescription(
                 Finder.ResolveQueryName(ctx.Controller.ControllerContext.HttpContext.Request.Params["webQueryName"]));

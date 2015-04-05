@@ -86,14 +86,16 @@ namespace Signum.Web.AuthAdmin
 
         static TypeAllowed ParseTypeAllowed(IDictionary<string, string> dic)
         {
-            return TypeAllowedExtensions.Create(
-                Mapping.ParseHtmlBool(dic["Create"]),
-                Mapping.ParseHtmlBool(dic["Modify"]),
-                Mapping.ParseHtmlBool(dic["Read"]),
-                Mapping.ParseHtmlBool(dic["None"]));
+            throw new NotImplementedException();
+
+            //return TypeAllowedExtensions.Create(
+            //    Mapping.ParseHtmlBool(dic["Create"]),
+            //    Mapping.ParseHtmlBool(dic["Modify"]),
+            //    Mapping.ParseHtmlBool(dic["Read"]),
+            //    Mapping.ParseHtmlBool(dic["None"]));
         }
 
-        static void Register<T, AR, R, A, K>(string partialViewName, Expression<Func<AR, K>> getKey, Mapping<A> allowedMapping, bool embedded)
+        static void Register<T, AR, R, A, K>(string partialViewName, Expression<Func<AR, K>> getKey, IMapping<A> allowedMapping, bool embedded)
             where T : BaseRulePack<AR>
             where AR : AllowedRule<R, A>, new()
             where R : Entity
@@ -126,13 +128,15 @@ namespace Signum.Web.AuthAdmin
                     .SetProperty(m => m.Rules,
                         new MListDictionaryMapping<TypeAllowedRule, TypeEntity>(a => a.Resource,
                             new EntityMapping<TypeAllowedRule>(false)
-                            .SetProperty(p => p.Allowed, ctx => new TypeAllowedAndConditions(
-                                ParseTypeAllowed(ctx.Inputs.SubDictionary("Fallback")),
-                                ctx.Inputs.SubDictionary("Conditions").IndexSubDictionaries().Select(d =>
-                                    new TypeConditionRule(
-                                        SymbolLogic<TypeConditionSymbol>.ToSymbol(d["ConditionName"]),
-                                        ParseTypeAllowed(d.SubDictionary("Allowed")))
-                                   ).ToReadOnly()))
+                            .SetProperty(p => p.Allowed, new Mapping<TypeAllowedAndConditions>(ctx => { throw new NotImplementedException(); }
+                    //new TypeAllowedAndConditions(
+                    //ParseTypeAllowed(ctx.JToken.SubDictionary("Fallback")),
+                    //ctx.Inputs.SubDictionary("Conditions").IndexSubDictionaries().Select(d =>
+                    //    new TypeConditionRule(
+                    //        SymbolLogic<TypeConditionSymbol>.ToSymbol(d["ConditionName"]),
+                    //        ParseTypeAllowed(d.SubDictionary("Allowed")))
+                    //   ).ToReadOnly())
+                                   , null))
                         ))
             });
 

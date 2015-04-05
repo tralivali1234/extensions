@@ -20,44 +20,47 @@ namespace Signum.Web.Auth
         public static readonly string OldPasswordKey = "OldPassword";
         public static readonly string NewPasswordKey = "NewPassword";
         public static readonly string NewPasswordBisKey = "NewPasswordBis";
-        public static readonly string UserNameKey = "UserName"; 
+        public static readonly string UserNameKey = "UserName";
 
-        public static Mapping<UserEntity> ChangePasswordOld = new EntityMapping<UserEntity>(false)
-            .SetProperty(u => u.PasswordHash, ctx =>
+        public static IMapping<UserEntity> ChangePasswordOld = new EntityMapping<UserEntity>(false)
+            .SetProperty(u => u.PasswordHash, new Mapping<byte[]>(ctx =>
             {
-                string oldPassword = ctx.Parent.Inputs[OldPasswordKey];
-                if (ctx.Value != Security.EncodePassword(oldPassword))
-                    return ctx.ParentNone(OldPasswordKey, AuthMessage.PasswordDoesNotMatchCurrent.NiceToString());
+                throw new NotImplementedException();
+                //string oldPassword = ctx.Parent.Inputs[OldPasswordKey];
+                //if (ctx.Value != Security.EncodePassword(oldPassword))
+                //    return ctx.ParentNone(OldPasswordKey, AuthMessage.PasswordDoesNotMatchCurrent.NiceToString());
 
-                return GetNewPassword(ctx, NewPasswordKey, NewPasswordBisKey);
-            });
+                //return GetNewPassword(ctx, NewPasswordKey, NewPasswordBisKey);
+            }, null));
 
         public static EntityMapping<UserEntity> ChangePassword = new EntityMapping<UserEntity>(false)
-            .SetProperty(u => u.PasswordHash, ctx =>
-        {      
+            .SetProperty(u => u.PasswordHash, new Mapping<byte[]>(ctx =>
+        {
             return GetNewPassword(ctx, NewPasswordKey, NewPasswordBisKey);
-        });
+        }, null));
 
         public static EntityMapping<UserEntity> NewUser = new EntityMapping<UserEntity>(true)
-            .SetProperty(u => u.PasswordHash, ctx =>
+            .SetProperty(u => u.PasswordHash, new Mapping<byte[]>(ctx =>
         {
             return GetNewPassword(ctx, NewPasswordKey, NewPasswordBisKey);
-        });
+        }, null));
 
-        public static byte[] GetNewPassword(MappingContext<byte[]> ctx, string newPasswordKey, string newPasswordBisKey)
+        public static byte[] GetNewPassword(ParseContext<byte[]> ctx, string newPasswordKey, string newPasswordBisKey)
         {
-            string newPassword = ctx.Parent.Inputs[newPasswordKey];
-            if (string.IsNullOrEmpty(newPassword))
-                return ctx.ParentNone(newPasswordKey, AuthMessage.PasswordMustHaveAValue.NiceToString());
+            throw new NotImplementedException();
 
-            string newPasswordBis = ctx.Parent.Inputs[newPasswordBisKey];
-            if (string.IsNullOrEmpty(newPasswordBis))
-                return ctx.ParentNone(newPasswordBisKey, AuthMessage.YouMustRepeatTheNewPassword.NiceToString());
+            //string newPassword = ctx.Parent.Inputs[newPasswordKey];
+            //if (string.IsNullOrEmpty(newPassword))
+            //    return ctx.ParentNone(newPasswordKey, AuthMessage.PasswordMustHaveAValue.NiceToString());
 
-            if (newPassword != newPasswordBis)
-                return ctx.ParentNone(newPasswordBisKey, AuthMessage.TheSpecifiedPasswordsDontMatch.NiceToString());
+            //string newPasswordBis = ctx.Parent.Inputs[newPasswordBisKey];
+            //if (string.IsNullOrEmpty(newPasswordBis))
+            //    return ctx.ParentNone(newPasswordBisKey, AuthMessage.YouMustRepeatTheNewPassword.NiceToString());
 
-            return Security.EncodePassword(newPassword);
+            //if (newPassword != newPasswordBis)
+            //    return ctx.ParentNone(newPasswordBisKey, AuthMessage.TheSpecifiedPasswordsDontMatch.NiceToString());
+
+            //return Security.EncodePassword(newPassword);
         }
     }    
 }

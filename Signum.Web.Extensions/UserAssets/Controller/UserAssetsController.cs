@@ -51,7 +51,7 @@ namespace Signum.Web.UserAssets
 
         }
 
-        static Mapping<UserAssetPreviewModel> mapping = new EntityMapping<UserAssetPreviewModel>(false)
+        static IMapping<UserAssetPreviewModel> mapping = new EntityMapping<UserAssetPreviewModel>(false)
             .SetProperty(m=>m.Lines, new MListDictionaryMapping<UserAssetPreviewLine, Guid>(a=>a.Guid)
                 .SetElementMapping(new EntityMapping<UserAssetPreviewLine>(false).CreateProperty(a=>a.OverrideEntity)));
 

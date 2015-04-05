@@ -74,45 +74,46 @@ namespace Signum.Web.Mailing
                     new EmbeddedEntitySettings<EmailMasterTemplateMessageEntity>
                     {
                         PartialViewName = e => ViewPrefix.FormatWith("EmailMasterTemplateMessage"),
-                        MappingDefault = new EntityMapping<EmailMasterTemplateMessageEntity>(true)
-                            .SetProperty(emtm => emtm.MasterTemplate, ctx => 
-                            {
-                                return (EmailMasterTemplateEntity)ctx.Parent.Parent.Parent.Parent.UntypedValue;
-                            })
+                        //MappingDefault = new EntityMapping<EmailMasterTemplateMessageEntity>(true)
+                        //    .SetProperty(emtm => emtm.MasterTemplate, new Mapping<EmailMasterTemplateEntity>(ctx => 
+                        //    {
+                        //        return (EmailMasterTemplateEntity)ctx.Parent.Parent.Parent.Parent.UntypedValue;
+                        //    }, null))
                     },
                     
                     new EntitySettings<EmailTemplateEntity> { PartialViewName = e => ViewPrefix.FormatWith("EmailTemplate"), AvoidValidateRequest = true },
                     new EmbeddedEntitySettings<EmailTemplateMessageEntity>() 
                     { 
                         PartialViewName = e => ViewPrefix.FormatWith("EmailTemplateMessage"),
-                        MappingDefault = new EntityMapping<EmailTemplateMessageEntity>(true)
-                            .SetProperty(etm => etm.Template, ctx =>
-                            {
-                                return (EmailTemplateEntity)ctx.Parent.Parent.Parent.Parent.UntypedValue;
-                            })
+                        //MappingDefault = new EntityMapping<EmailTemplateMessageEntity>(true)
+                        //    .SetProperty(etm => etm.Template, ctx =>
+                        //    {
+                        //        return (EmailTemplateEntity)ctx.Parent.Parent.Parent.Parent.UntypedValue;
+                        //    })
                     },
 
                     new EmbeddedEntitySettings<EmailTemplateContactEntity>() 
                     { 
                         PartialViewName = e => ViewPrefix.FormatWith("EmailTemplateContact"),
                         MappingDefault = new EntityMapping<EmailTemplateContactEntity>(true)
-                            .SetProperty(ec => ec.Token, ctx =>
+                            .SetProperty(ec => ec.Token, new Mapping<QueryTokenEntity>(ctx =>
                             {
-                                string tokenStr = UserAssetsHelper.GetTokenString(ctx);
-                                return ParseQueryToken(tokenStr, ctx.Parent.Parent.Parent.Inputs[TypeContextUtilities.Compose("Query", EntityBaseKeys.RuntimeInfo)]);
-                            }),
+                                throw new InvalidOperationException();
+                                //string tokenStr = UserAssetsHelper.GetTokenString(ctx);
+                                //return ParseQueryToken(tokenStr, ctx.Parent.Parent.Parent.Inputs[TypeContextUtilities.Compose("Query", EntityBaseKeys.RuntimeInfo)]);
+                            }, null)),
                     },
 
                     new EmbeddedEntitySettings<EmailTemplateRecipientEntity>() 
                     { 
                         PartialViewName = e => ViewPrefix.FormatWith("EmailTemplateRecipient"),
                         MappingDefault = new EntityMapping<EmailTemplateRecipientEntity>(true)
-                            .SetProperty(ec => ec.Token, ctx =>
+                            .SetProperty(ec => ec.Token, new Mapping<QueryTokenEntity>(ctx =>
                             {
-                                string tokenStr = UserAssetsHelper.GetTokenString(ctx);
-
-                                return ParseQueryToken(tokenStr, ctx.Parent.Parent.Parent.Parent.Inputs[TypeContextUtilities.Compose("Query", EntityBaseKeys.RuntimeInfo)]);
-                            })
+                                throw new InvalidOperationException();
+                                //string tokenStr = UserAssetsHelper.GetTokenString(ctx);
+                                //return ParseQueryToken(tokenStr, ctx.Parent.Parent.Parent.Parent.Inputs[TypeContextUtilities.Compose("Query", EntityBaseKeys.RuntimeInfo)]);
+                            }, null))
                     },
 
                     new EntitySettings<SmtpConfigurationEntity> { PartialViewName = e => ViewPrefix.FormatWith("SmtpConfiguration") },
@@ -171,17 +172,18 @@ namespace Signum.Web.Mailing
                 
                 Navigator.EntitySettings<EmailMessageEntity>().MappingMain.AsEntityMapping()
                     .RemoveProperty(a => a.Body)
-                    .SetProperty(a => a.Body, ctx =>
+                    .SetProperty(a => a.Body, new Mapping<string>(ctx =>
                     {
-                        var email = ((EmailMessageEntity)ctx.Parent.UntypedValue);
+                        throw new InvalidOperationException();
+                        //var email = ((EmailMessageEntity)ctx.Parent.UntypedValue);
 
-                        return SetWebMailBody(ctx.Value, new WebMailOptions
-                        {
-                             Attachments = email.Attachments,
-                             UntrustedImage = null,
-                             Url = RouteHelper.New(),
-                        });
-                    }); 
+                        //return SetWebMailBody(ctx.Value, new WebMailOptions
+                        //{
+                        //     Attachments = email.Attachments,
+                        //     UntrustedImage = null,
+                        //     Url = RouteHelper.New(),
+                        //});
+                    }, null)); 
             }
         }
 

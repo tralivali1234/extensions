@@ -33,15 +33,16 @@ namespace Signum.Web.UserQueries
         public static string ViewPrefix = "~/UserQueries/Views/{0}.cshtml";
         public static JsModule Module = new JsModule("Extensions/Signum.Web.Extensions/UserQueries/Scripts/UserQuery");
 
-        public static Func<SubTokensOptions, Mapping<QueryTokenEntity>> QueryTokenMapping = opts => ctx =>
+        public static Func<SubTokensOptions, IMapping<QueryTokenEntity>> QueryTokenMapping = opts => new Mapping<QueryTokenEntity>(ctx =>
         {
-            string tokenStr = UserAssetsHelper.GetTokenString(ctx);
+            throw new InvalidOperationException();
+            //string tokenStr = UserAssetsHelper.GetTokenString(ctx);
 
-            string queryKey = ctx.Parent.Parent.Parent.Parent.Inputs[TypeContextUtilities.Compose("Query", "Key")];
-            object queryName = QueryLogic.ToQueryName(queryKey);
-            QueryDescription qd = DynamicQueryManager.Current.QueryDescription(queryName);
-            return new QueryTokenEntity(QueryUtils.Parse(tokenStr, qd, opts));
-        };
+            //string queryKey = ctx.Parent.Parent.Parent.Parent.Inputs[TypeContextUtilities.Compose("Query", "Key")];
+            //object queryName = QueryLogic.ToQueryName(queryKey);
+            //QueryDescription qd = DynamicQueryManager.Current.QueryDescription(queryName);
+            //return new QueryTokenEntity(QueryUtils.Parse(tokenStr, qd, opts));
+        }, null);
 
         public static void Start()
         {

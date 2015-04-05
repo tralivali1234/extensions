@@ -52,7 +52,7 @@ namespace Signum.Web.Chart
             var ctx = this.ExtractChartRequestCtx(null);
 
             if (ctx.HasErrors())
-                throw new InvalidOperationException(ctx.Errors.SelectMany(a => a.Value).ToString("\r\n"));
+                throw new InvalidOperationException(ctx.GlobalErrors.SelectMany(a => a.Value).ToString("\r\n"));
 
             return OpenChartRequest(ctx.Value, null);
         }
@@ -236,10 +236,10 @@ namespace Signum.Web.Chart
         }
         #endregion
 
-        public MappingContext<ChartRequest> ExtractChartRequestCtx(int? lastTokenChanged)
+        public ParseContext<ChartRequest> ExtractChartRequestCtx(int? lastTokenChanged)
         {
             var ctx = new ChartRequest(Finder.ResolveQueryName(Request.Params["webQueryName"]))
-                .ApplyChanges(this, ChartClient.MappingChartRequest, inputs: Request.Params.ToSortedList(this.Prefix()));
+                .ApplyChanges(this, ChartClient.MappingChartRequest);
 
             ctx.Value.CleanOrderColumns();
 

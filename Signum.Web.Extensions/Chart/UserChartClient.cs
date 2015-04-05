@@ -37,18 +37,19 @@ namespace Signum.Web.Chart
                 UserAssetsClient.Start();
                 UserAssetsClient.RegisterExportAssertLink<UserChartEntity>();
 
-                Func<SubTokensOptions, Mapping<QueryTokenEntity>> qtMapping = ops=>ctx =>
+                Func<SubTokensOptions, IMapping<QueryTokenEntity>> qtMapping = ops => new Mapping<QueryTokenEntity>(ctx =>
                 {
-                    string tokenStr = UserAssetsHelper.GetTokenString(ctx);
+                    throw new InvalidOperationException();
+                    //string tokenStr = UserAssetsHelper.GetTokenString(ctx);
 
-                    string queryKey = ctx.Parent.Parent.Parent.Inputs[TypeContextUtilities.Compose("Query", "Key")];
-                    object queryName = QueryLogic.ToQueryName(queryKey);
+                    //string queryKey = ctx.Parent.Parent.Parent.Inputs[TypeContextUtilities.Compose("Query", "Key")];
+                    //object queryName = QueryLogic.ToQueryName(queryKey);
 
-                    var chart = ((UserChartEntity)ctx.Parent.Parent.Parent.UntypedValue);
+                    //var chart = ((UserChartEntity)ctx.Parent.Parent.Parent.UntypedValue);
 
-                    QueryDescription qd = DynamicQueryManager.Current.QueryDescription(queryName);
-                    return new QueryTokenEntity(QueryUtils.Parse(tokenStr, qd, ops | (chart.GroupResults ? SubTokensOptions.CanAggregate : 0)));
-                };
+                    //QueryDescription qd = DynamicQueryManager.Current.QueryDescription(queryName);
+                    //return new QueryTokenEntity(QueryUtils.Parse(tokenStr, qd, ops | (chart.GroupResults ? SubTokensOptions.CanAggregate : 0)));
+                }, null);
 
                 Navigator.AddSettings(new List<EntitySettings>
                 {

@@ -24,8 +24,8 @@ namespace Signum.Web.Basic
                 {
                     new EntitySettings<QueryEntity> 
                     {  
-                        MappingMain = new EntityMapping<QueryEntity>(true).GetValue,
-                        MappingLine = new EntityMapping<QueryEntity>(true).GetValue
+                        MappingMain = new EntityMapping<QueryEntity>(true),
+                        MappingLine = new EntityMapping<QueryEntity>(true)
                     }
                 });
             }

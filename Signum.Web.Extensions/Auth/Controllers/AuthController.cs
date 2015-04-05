@@ -253,8 +253,8 @@ namespace Signum.Web.Auth
 
                 var context = user.ApplyChanges(this, UserMapping.ChangePassword, "").Validate();
 
-                if (!context.Errors.TryGetC(UserMapping.NewPasswordKey).IsNullOrEmpty() ||
-                    !context.Errors.TryGetC(UserMapping.NewPasswordBisKey).IsNullOrEmpty())
+                if (!context.GlobalErrors.TryGetC(UserMapping.NewPasswordKey).IsNullOrEmpty() ||
+                    !context.GlobalErrors.TryGetC(UserMapping.NewPasswordBisKey).IsNullOrEmpty())
                 {
                     ViewData["Title"] = AuthMessage.ChangePassword.NiceToString();
                     ModelState.FromContext(context);
