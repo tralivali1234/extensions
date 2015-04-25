@@ -23,7 +23,7 @@ namespace Signum.Web.Auth
         public static readonly string UserNameKey = "UserName";
 
         public static IMapping<UserEntity> ChangePasswordOld = new EntityMapping<UserEntity>(false)
-            .SetProperty(u => u.PasswordHash, new Mapping<byte[]>(ctx =>
+            .SetProperty(u => u.PasswordHash, new Mapping<byte[]>(null, ctx =>
             {
                 throw new NotImplementedException();
                 //string oldPassword = ctx.Parent.Inputs[OldPasswordKey];
@@ -31,19 +31,19 @@ namespace Signum.Web.Auth
                 //    return ctx.ParentNone(OldPasswordKey, AuthMessage.PasswordDoesNotMatchCurrent.NiceToString());
 
                 //return GetNewPassword(ctx, NewPasswordKey, NewPasswordBisKey);
-            }, null));
+            }));
 
         public static EntityMapping<UserEntity> ChangePassword = new EntityMapping<UserEntity>(false)
-            .SetProperty(u => u.PasswordHash, new Mapping<byte[]>(ctx =>
+            .SetProperty(u => u.PasswordHash, new Mapping<byte[]>(null, ctx =>
         {
             return GetNewPassword(ctx, NewPasswordKey, NewPasswordBisKey);
-        }, null));
+        }));
 
         public static EntityMapping<UserEntity> NewUser = new EntityMapping<UserEntity>(true)
-            .SetProperty(u => u.PasswordHash, new Mapping<byte[]>(ctx =>
+            .SetProperty(u => u.PasswordHash, new Mapping<byte[]>(null, ctx =>
         {
             return GetNewPassword(ctx, NewPasswordKey, NewPasswordBisKey);
-        }, null));
+        }));
 
         public static byte[] GetNewPassword(ParseContext<byte[]> ctx, string newPasswordKey, string newPasswordBisKey)
         {

@@ -24,10 +24,11 @@ namespace Signum.Web.Chart
         {
             Type type = Navigator.ResolveType(typeName);
 
-            var ctx = ChartColorLogic.GetPalette(type).ApplyChanges(this).Validate();
+            var ctx = ChartColorLogic.GetPalette(type).ApplyChanges(this);
 
-            if (ctx.HasErrors())
-                return ctx.ToJsonModelState();
+            throw new NotImplementedException();
+            //if (ctx.HasErrors())
+            //    return ctx.ToJsonModelState();
 
             var palette = ctx.Value;
 

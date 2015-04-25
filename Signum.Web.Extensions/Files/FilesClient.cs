@@ -75,7 +75,7 @@ namespace Signum.Web.Files
                      
                     var baseMapping = es.MappingLine.AsEntityMapping().RemoveProperty(fp => fp.BinaryFile);
 
-                    es.MappingLine = new Mapping<FilePathEntity>(ctx =>
+                    es.MappingLine = new Mapping<FilePathEntity>(null, ctx =>
                     {
                         throw new InvalidOperationException();
 
@@ -104,7 +104,7 @@ namespace Signum.Web.Files
                         //    else
                         //        return baseMapping(ctx);
                         //}
-                    }, null);
+                    });
 
                     es.MappingMain = es.MappingLine;
 
@@ -138,7 +138,7 @@ namespace Signum.Web.Files
 
                     var baseMapping = es.MappingLine.AsEntityMapping().RemoveProperty(fp => fp.BinaryFile);
 
-                    es.MappingLine = new Mapping<FileEntity>(ctx =>
+                    es.MappingLine = new Mapping<FileEntity>(null, ctx =>
                     {
                         throw new InvalidOperationException();
                         //RuntimeInfo runtimeInfo = ctx.GetRuntimeInfo();
@@ -166,7 +166,7 @@ namespace Signum.Web.Files
                         //    else
                         //        return baseMapping(ctx);
                         //}
-                    }, null);
+                    });
 
                     FileLogic.DownloadFileUrl = DownloadFileUrl;
 
@@ -187,7 +187,7 @@ namespace Signum.Web.Files
 
                     var baseMapping = es.MappingDefault.AsEntityMapping().RemoveProperty(fp => fp.BinaryFile);
 
-                    es.MappingDefault = new Mapping<EmbeddedFileEntity>(ctx =>
+                    es.MappingDefault = new Mapping<EmbeddedFileEntity>(null, ctx =>
                     {
                         throw new NotImplementedException();
 
@@ -213,7 +213,7 @@ namespace Signum.Web.Files
                         //    else
                         //        return baseMapping(ctx);
                         //}
-                    }, null);
+                    });
                 }
 
                 var dqm = DynamicQueryManager.Current;

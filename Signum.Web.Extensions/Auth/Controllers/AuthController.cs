@@ -49,10 +49,11 @@ namespace Signum.Web.Auth
         [AcceptVerbs(HttpVerbs.Post)]
         public ActionResult SaveNewUser()
         {
-            var context = this.ExtractEntity<UserEntity>().ApplyChanges(this, UserMapping.NewUser).Validate();
+            var context = this.ExtractEntity<UserEntity>().ApplyChanges(this, UserMapping.NewUser);
 
-            if (context.HasErrors())
-                return context.ToJsonModelState();
+            throw new InvalidOperationException();
+            //if (context.HasErrors())
+            //    return context.ToJsonModelState();
 
             context.Value.Execute(UserOperation.SaveNew);
             return this.DefaultExecuteResult(context.Value);
@@ -108,10 +109,12 @@ namespace Signum.Web.Auth
                     using (AuthLogic.Disable())
                         user = AuthLogic.RetrieveUser(username);
 
-                    var context = user.ApplyChanges(this, UserMapping.ChangePasswordOld, "").Validate();
+                    var context = user.ApplyChanges(this, UserMapping.ChangePasswordOld, "");
 
-                    if (context.HasErrors())
+                    //if (context.HasErrors())
                     {
+                        throw new NotImplementedException();
+
                         ViewData["username"] = username;
                         ModelState.FromContext(context);
                         return View(AuthClient.ChangePasswordView);
@@ -127,9 +130,11 @@ namespace Signum.Web.Auth
                 }
                 else
                 {
-                    var context = UserEntity.Current.ApplyChanges(this, UserMapping.ChangePasswordOld, "").Validate();
-                    if (context.HasErrors())
+                    var context = UserEntity.Current.ApplyChanges(this, UserMapping.ChangePasswordOld, "");
+
+                    //if (context.HasErrors())
                     {
+                        throw new NotImplementedException();
                         ModelState.FromContext(context);
                         RefreshSessionUserChanges();
                         return View(AuthClient.ChangePasswordView);
@@ -251,10 +256,11 @@ namespace Signum.Web.Auth
 
                 var user = request.User;
 
-                var context = user.ApplyChanges(this, UserMapping.ChangePassword, "").Validate();
+                var context = user.ApplyChanges(this, UserMapping.ChangePassword, "");
 
-                if (!context.GlobalErrors.TryGetC(UserMapping.NewPasswordKey).IsNullOrEmpty() ||
-                    !context.GlobalErrors.TryGetC(UserMapping.NewPasswordBisKey).IsNullOrEmpty())
+                throw new NotImplementedException();
+                //if (!context.GlobalErrors.TryGetC(UserMapping.NewPasswordKey).IsNullOrEmpty() ||
+                //    !context.GlobalErrors.TryGetC(UserMapping.NewPasswordBisKey).IsNullOrEmpty())
                 {
                     ViewData["Title"] = AuthMessage.ChangePassword.NiceToString();
                     ModelState.FromContext(context);

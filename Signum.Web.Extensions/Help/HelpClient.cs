@@ -67,12 +67,12 @@ namespace Signum.Web.Help
                 });
 
                 Navigator.EmbeddedEntitySettings<PropertyRouteHelpEntity>().MappingDefault.AsEntityMapping()
-                    .SetProperty(a => a.Property, new Mapping<PropertyRouteEntity>(ctx =>
+                    .SetProperty(a => a.Property, new Mapping<PropertyRouteEntity>(null, ctx =>
                     {
                         throw new InvalidOperationException();
                         //var type = ctx.FindParent<EntityHelpEntity>().Value.Type.ToType();
                         //return PropertyRoute.Parse(type, ctx.Input).ToPropertyRouteEntity();
-                    }, null));
+                    }));
 
                 RegisterHelpRoutes();
 

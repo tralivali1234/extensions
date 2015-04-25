@@ -28,6 +28,7 @@ using Newtonsoft.Json.Linq;
 using Signum.Web.UserAssets;
 using Signum.Entities.UserAssets;
 using Signum.Web.Mappings;
+using Signum.Utilities.ExpressionTrees;
 
 namespace Signum.Web.Chart
 {
@@ -73,15 +74,15 @@ namespace Signum.Web.Chart
         }
 
         public static EntityMapping<ChartColumnEntity> MappingChartColumn = new EntityMapping<ChartColumnEntity>(true)
-            .SetProperty(ct => ct.Token, new Mapping<QueryTokenEntity>(ctx =>
+            .SetProperty(ct => ct.Token, new Mapping<QueryTokenEntity>(null, ctx =>
             {
                 var tokenName = UserAssetsHelper.GetTokenString(ctx);
 
                 if (string.IsNullOrEmpty(tokenName))
                     return null;
 
-                var qd = DynamicQueryManager.Current.QueryDescription(
-                    Finder.ResolveQueryName(ctx.Controller.ControllerContext.HttpContext.Request.Params["webQueryName"]));
+                var qd = DynamicQueryManager.Current.QueryDescription(null);
+                //     Finder.ResolveQueryName(ctx.Controller.ControllerContext.HttpContext.Request.Params["webQueryName"]));
 
                 var chartToken = (ChartColumnEntity)ctx.Parent.UntypedValue;
 
@@ -91,18 +92,18 @@ namespace Signum.Web.Chart
                     token = token.Parent;
 
                 return new QueryTokenEntity(token);
-            }, null))
-            .SetProperty(ct => ct.DisplayName, new Mapping<string>(ctx =>
+            }))
+            .SetProperty(ct => ct.DisplayName, new Mapping<string>(null, ctx =>
             {
                 if (ctx.JToken == null)
                     return ctx.None();
 
                 return ctx.JToken.Value<string>();
-            }, null));
+            }));
 
         public static EntityMapping<ChartRequest> MappingChartRequest = new EntityMapping<ChartRequest>(true)
-            .SetProperty(cr => cr.Filters, new Mapping<List<Entities.DynamicQuery.Filter>>(ctx => ExtractChartFilters(ctx), null))
-            .SetProperty(cr => cr.Orders, new Mapping<List<Entities.DynamicQuery.Order>>(ctx => ExtractChartOrders(ctx), null))
+            .SetProperty(cr => cr.Filters, new Mapping<List<Entities.DynamicQuery.Filter>>(null, ctx => ExtractChartFilters(ctx)))
+            .SetProperty(cr => cr.Orders, new Mapping<List<Entities.DynamicQuery.Order>>(null, ctx => ExtractChartOrders(ctx)))
             .SetProperty(cb => cb.Columns, new MListCorrelatedOrDefaultMapping<ChartColumnEntity>(MappingChartColumn));
 
 
@@ -120,47 +121,61 @@ namespace Signum.Web.Chart
 
             public override MList<S> ParseJson(ParseContext<MList<S>> ctx)
             {
-                MList<S> list = ctx.Value;
-                int i = 0;
+                using (HeavyProfiler.LogNoStackTrace("GetValue", () => "MListCorrelatedOrDefaultMapping<{0}>".FormatWith(typeof(S).TypeName())))
+                {
+                    MList<S> list = ctx.Value;
+                    int i = 0;
 
-                throw new NotImplementedException();
+                    PropertyRoute route = ctx.PropertyRoute.Add("Item");
 
-                //foreach (ParseContext<S> itemCtx in GenerateItemContexts(ctx).OrderBy(mc => mc.Prefix.Substring(mc.Prefix.LastIndexOf("_") + 1).ToInt().Value))
-                //{
-                //    if (i < list.Count)
-                //    {
-                //        itemCtx.CurrentValue = list[i];
-                //        itemCtx.CurrentValue = ElementMapping(itemCtx);
+                    foreach (JObject pair in (JArray)ctx.JToken)
+                    {
+                        if (i < list.Count)
+                        {
+                            ParseSubContext<S> itemCtx = new ParseSubContext<S>(pair["item"], null, route, ctx);
 
-                //        ctx.AddChild(itemCtx);
-                //    }
-                //    i++;
-                //}
+                            itemCtx.Value = list[i];
+                            itemCtx.Value = ElementMapping.ParseJson(itemCtx);
 
-                return list;
+                            ctx.AddChild(itemCtx);
+
+                            if (!itemCtx.SupressChange && !object.Equals(list[i], itemCtx.Value))
+                                Signum.Web.Mappings.Mapping.AssertCanChange(ctx.PropertyRoute);
+
+                            if (!list[i].Equals(itemCtx.Value))
+                                list[i] = itemCtx.Value;
+                        }
+                        i++;
+                    }
+
+                    return list;
+                }
             }
         }
 
         static List<Entities.DynamicQuery.Filter> ExtractChartFilters(ParseContext<List<Entities.DynamicQuery.Filter>> ctx)
         {
-            var qd = DynamicQueryManager.Current.QueryDescription(
-                Finder.ResolveQueryName(ctx.Controller.ControllerContext.HttpContext.Request.Params["webQueryName"]));
+            var qd = DynamicQueryManager.Current.QueryDescription(null);
+                //Finder.ResolveQueryName(ctx.Controller.ControllerContext.HttpContext.Request.Params["webQueryName"]));
 
             ChartRequest chartRequest = (ChartRequest)ctx.Parent.UntypedValue;
 
-            return FindOptionsModelBinder.ExtractFilterOptions(ctx.Controller.ControllerContext.HttpContext, qd, canAggregate: chartRequest.GroupResults)
-                .Select(fo => fo.ToFilter()).ToList();
+            //return FindOptionsModelBinder.ExtractFilterOptions(ctx.Controller.ControllerContext.HttpContext, qd, canAggregate: chartRequest.GroupResults)
+            //    .Select(fo => fo.ToFilter()).ToList();
+
+            return null;
         }
 
         static List<Order> ExtractChartOrders(ParseContext<List<Order>> ctx)
         {
-            var qd = DynamicQueryManager.Current.QueryDescription(
-                Finder.ResolveQueryName(ctx.Controller.ControllerContext.HttpContext.Request.Params["webQueryName"]));
+            var qd = DynamicQueryManager.Current.QueryDescription(null);
+                //Finder.ResolveQueryName(ctx.Controller.ControllerContext.HttpContext.Request.Params["webQueryName"]));
 
             ChartRequest chartRequest = (ChartRequest)ctx.Parent.UntypedValue;
 
-            return FindOptionsModelBinder.ExtractOrderOptions(ctx.Controller.ControllerContext.HttpContext, qd, canAggregate: true/*chartRequest.GroupResults*/)
-                    .Select(fo => fo.ToOrder()).ToList();
+            //return FindOptionsModelBinder.ExtractOrderOptions(ctx.Controller.ControllerContext.HttpContext, qd, canAggregate: true/*chartRequest.GroupResults*/)
+            //        .Select(fo => fo.ToOrder()).ToList();
+            return null;
         }
 
         static ToolBarButton[] ButtonBarQueryHelper_GetButtonBarForQueryName(QueryButtonContext ctx)

@@ -9,7 +9,8 @@ using Signum.Entities;
 using Signum.Web.Operations;
 using Signum.Entities.Isolation;
 using Signum.Engine.Isolation;
-using System.Web.Mvc;
+using System.Web.Http.Controllers;
+using System.Web.Http.Filters;
 
 namespace Signum.Web.Isolation
 {
@@ -38,7 +39,7 @@ namespace Signum.Web.Isolation
                 //Unnecessary with the filter
                 Constructor.Manager.PreConstructors += ctx =>
                     !MixinDeclarations.IsDeclared(ctx.Type, typeof(IsolationMixin)) ? null :
-                    IsolationEntity.Override(GetIsolation(ctx.Controller.ControllerContext)); 
+                    IsolationEntity.Override(GetIsolation(ctx.ActionContext)); 
             }
         }
 
@@ -53,10 +54,10 @@ namespace Signum.Web.Isolation
             return list;
         }
 
-        public static Lite<IsolationEntity> GetIsolation(ControllerContext ctx)
+        public static Lite<IsolationEntity> GetIsolation(HttpActionContext ctx)
         {
-            var isolation = ctx.Controller.ControllerContext.HttpContext.Request["Isolation"] ??
-                ctx.Controller.ControllerContext.HttpContext.Request.Headers["Isolation"];
+            var isolation = //ctx.ControllerContext..ControllerContext.HttpContext.Request["Isolation"] ??
+                (string)ctx.ControllerContext.Request.Properties["Isolation"];
 
             if (isolation.HasText())
                 return Lite.Parse<IsolationEntity>(isolation);
@@ -69,59 +70,23 @@ namespace Signum.Web.Isolation
     {
         static string Key = "isolationDisposer";
 
-        public override void OnActionExecuting(ActionExecutingContext filterContext)
+        public override void OnActionExecuting(HttpActionContext actionContext)
         {
-            var iso = IsolationClient.GetIsolation(filterContext.Controller.ControllerContext); 
-
-            ViewDataDictionary viewData = filterContext.Controller.ViewData;
+            var iso = IsolationClient.GetIsolation(actionContext); 
 
             IDisposable isolation = IsolationEntity.Override(iso);
             if (isolation != null)
-                viewData.Add(Key, isolation);
+                actionContext.ActionArguments.Add(Key, isolation);
 
         }
 
-        public override void OnActionExecuted(ActionExecutedContext filterContext)
+        public override void OnActionExecuted(HttpActionExecutedContext actionExecutedContext)
         {
-            if (filterContext.Exception != null)
-            {
-                ViewDataDictionary viewData = filterContext.Controller.ViewData;
-                Dispose(viewData);
-            }
-
-            base.OnActionExecuted(filterContext);
-        }
-
-        public override void OnResultExecuting(ResultExecutingContext filterContext)
-        {
-            ViewDataDictionary viewData = filterContext.Controller.ViewData;
-
-            IDisposable isolation = (IDisposable)viewData[Key];
-
-            if (isolation == null && filterContext.Result is ViewResult)
-            {
-                var model = ((ViewResult)filterContext.Result).Model;
-
-                Entity entity = (model as TypeContext).Try(tc => tc.UntypedValue as Entity) ?? model as Entity;
-
-                if (entity != null)
-                    viewData[Key] = IsolationEntity.Override(entity.TryIsolation());
-            }
-        }
-
-        public override void OnResultExecuted(ResultExecutedContext filterContext)
-        {
-            ViewDataDictionary viewData = filterContext.Controller.ViewData;
-            Dispose(viewData);
-        }
-
-        void Dispose(ViewDataDictionary viewData)
-        {
-            IDisposable elapsed = (IDisposable)viewData.TryGetC(Key);
+            IDisposable elapsed = (IDisposable)actionExecutedContext.ActionContext.ActionArguments.TryGetC(Key);
             if (elapsed != null)
             {
                 elapsed.Dispose();
-                viewData.Remove(Key);
+                actionExecutedContext.ActionContext.ActionArguments.Remove(Key);
             }
         }
     }

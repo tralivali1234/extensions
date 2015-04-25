@@ -51,8 +51,9 @@ namespace Signum.Web.Chart
         {
             var ctx = this.ExtractChartRequestCtx(null);
 
-            if (ctx.HasErrors())
-                throw new InvalidOperationException(ctx.GlobalErrors.SelectMany(a => a.Value).ToString("\r\n"));
+            throw new InvalidOperationException();
+            //if (ctx.HasErrors())
+            //    throw new InvalidOperationException(ctx.GlobalErrors.SelectMany(a => a.Value).ToString("\r\n"));
 
             return OpenChartRequest(ctx.Value, null);
         }
@@ -113,10 +114,11 @@ namespace Signum.Web.Chart
         [HttpPost]
         public ActionResult Draw(string prefix)
         {
-            var requestCtx = this.ExtractChartRequestCtx(null).Validate();
+            var requestCtx = this.ExtractChartRequestCtx(null);
 
-            if (requestCtx.HasErrors())
-                return requestCtx.ToJsonModelState();
+            throw new InvalidOperationException();
+            //if (requestCtx.HasErrors())
+            //    return requestCtx.ToJsonModelState();
 
             var request = requestCtx.Value;
 
@@ -215,9 +217,11 @@ namespace Signum.Web.Chart
         [HttpPost]
         public JsonNetResult Validate()
         {
-            var requestCtx = this.ExtractChartRequestCtx(null).Validate();
+            var requestCtx = this.ExtractChartRequestCtx(null);
 
-            return requestCtx.ToJsonModelState();
+            throw new NotImplementedException();
+            return null;
+            //return requestCtx.ToJsonModelState();
         }
 
         [HttpPost]

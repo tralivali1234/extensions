@@ -128,16 +128,14 @@ namespace Signum.Web.AuthAdmin
                     .SetProperty(m => m.Rules,
                         new MListDictionaryMapping<TypeAllowedRule, TypeEntity>(a => a.Resource,
                             new EntityMapping<TypeAllowedRule>(false)
-                            .SetProperty(p => p.Allowed, new Mapping<TypeAllowedAndConditions>(ctx => { throw new NotImplementedException(); }
-                    //new TypeAllowedAndConditions(
+                            .SetProperty(p => p.Allowed, new Mapping<TypeAllowedAndConditions>(null, null//new TypeAllowedAndConditions(
                     //ParseTypeAllowed(ctx.JToken.SubDictionary("Fallback")),
                     //ctx.Inputs.SubDictionary("Conditions").IndexSubDictionaries().Select(d =>
                     //    new TypeConditionRule(
                     //        SymbolLogic<TypeConditionSymbol>.ToSymbol(d["ConditionName"]),
                     //        ParseTypeAllowed(d.SubDictionary("Allowed")))
-                    //   ).ToReadOnly())
-                                   , null))
-                        ))
+                    //   ).ToReadOnly())))
+                        ))))
             });
 
             RegisterSaveButton<TypeRulePack>("types", false);

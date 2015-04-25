@@ -96,24 +96,24 @@ namespace Signum.Web.Mailing
                     { 
                         PartialViewName = e => ViewPrefix.FormatWith("EmailTemplateContact"),
                         MappingDefault = new EntityMapping<EmailTemplateContactEntity>(true)
-                            .SetProperty(ec => ec.Token, new Mapping<QueryTokenEntity>(ctx =>
+                            .SetProperty(ec => ec.Token, new Mapping<QueryTokenEntity>(null, ctx =>
                             {
                                 throw new InvalidOperationException();
                                 //string tokenStr = UserAssetsHelper.GetTokenString(ctx);
                                 //return ParseQueryToken(tokenStr, ctx.Parent.Parent.Parent.Inputs[TypeContextUtilities.Compose("Query", EntityBaseKeys.RuntimeInfo)]);
-                            }, null)),
+                            })),
                     },
 
                     new EmbeddedEntitySettings<EmailTemplateRecipientEntity>() 
                     { 
                         PartialViewName = e => ViewPrefix.FormatWith("EmailTemplateRecipient"),
                         MappingDefault = new EntityMapping<EmailTemplateRecipientEntity>(true)
-                            .SetProperty(ec => ec.Token, new Mapping<QueryTokenEntity>(ctx =>
+                            .SetProperty(ec => ec.Token, new Mapping<QueryTokenEntity>(null, ctx =>
                             {
                                 throw new InvalidOperationException();
                                 //string tokenStr = UserAssetsHelper.GetTokenString(ctx);
                                 //return ParseQueryToken(tokenStr, ctx.Parent.Parent.Parent.Parent.Inputs[TypeContextUtilities.Compose("Query", EntityBaseKeys.RuntimeInfo)]);
-                            }, null))
+                            }))
                     },
 
                     new EntitySettings<SmtpConfigurationEntity> { PartialViewName = e => ViewPrefix.FormatWith("SmtpConfiguration") },
@@ -172,7 +172,7 @@ namespace Signum.Web.Mailing
                 
                 Navigator.EntitySettings<EmailMessageEntity>().MappingMain.AsEntityMapping()
                     .RemoveProperty(a => a.Body)
-                    .SetProperty(a => a.Body, new Mapping<string>(ctx =>
+                    .SetProperty(a => a.Body, new Mapping<string>(null, ctx =>
                     {
                         throw new InvalidOperationException();
                         //var email = ((EmailMessageEntity)ctx.Parent.UntypedValue);
@@ -183,7 +183,7 @@ namespace Signum.Web.Mailing
                         //     UntrustedImage = null,
                         //     Url = RouteHelper.New(),
                         //});
-                    }, null)); 
+                    })); 
             }
         }
 

@@ -37,7 +37,7 @@ namespace Signum.Web.Chart
                 UserAssetsClient.Start();
                 UserAssetsClient.RegisterExportAssertLink<UserChartEntity>();
 
-                Func<SubTokensOptions, IMapping<QueryTokenEntity>> qtMapping = ops => new Mapping<QueryTokenEntity>(ctx =>
+                Func<SubTokensOptions, IMapping<QueryTokenEntity>> qtMapping = ops => new Mapping<QueryTokenEntity>(null, ctx =>
                 {
                     throw new InvalidOperationException();
                     //string tokenStr = UserAssetsHelper.GetTokenString(ctx);
@@ -49,7 +49,7 @@ namespace Signum.Web.Chart
 
                     //QueryDescription qd = DynamicQueryManager.Current.QueryDescription(queryName);
                     //return new QueryTokenEntity(QueryUtils.Parse(tokenStr, qd, ops | (chart.GroupResults ? SubTokensOptions.CanAggregate : 0)));
-                }, null);
+                });
 
                 Navigator.AddSettings(new List<EntitySettings>
                 {
