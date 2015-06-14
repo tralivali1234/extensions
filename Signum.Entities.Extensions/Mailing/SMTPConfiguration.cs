@@ -22,6 +22,13 @@ namespace Signum.Entities.Mailing
             set { SetToStr(ref name, value); }
         }
 
+        SmtpDeliveryFormat deliveryFormat;
+        public SmtpDeliveryFormat DeliveryFormat
+        {
+            get { return deliveryFormat; }
+            set { Set(ref deliveryFormat, value); }
+        }
+
         SmtpDeliveryMethod deliveryMethod;
         public SmtpDeliveryMethod DeliveryMethod
         {
@@ -53,12 +60,12 @@ namespace Signum.Entities.Mailing
         }
 
         [NotNullable]
-        MList<EmailRecipientEntity> aditionalRecipients = new MList<EmailRecipientEntity>();
+        MList<EmailRecipientEntity> additionalRecipients = new MList<EmailRecipientEntity>();
         [NoRepeatValidator]
-        public MList<EmailRecipientEntity> AditionalRecipients
+        public MList<EmailRecipientEntity> AdditionalRecipients
         {
-            get { return aditionalRecipients; }
-            set { Set(ref aditionalRecipients, value); }
+            get { return additionalRecipients; }
+            set { Set(ref additionalRecipients, value); }
         }
 
         protected override string PropertyValidation(System.Reflection.PropertyInfo pi)
@@ -69,9 +76,9 @@ namespace Signum.Entities.Mailing
         static StateValidator<SmtpConfigurationEntity, SmtpDeliveryMethod> stateValidator = new StateValidator<SmtpConfigurationEntity, SmtpDeliveryMethod>(
             a => a.DeliveryMethod, a => a.Network, a => a.PickupDirectoryLocation)
             {
-{SmtpDeliveryMethod.Network,        true, false },
-{SmtpDeliveryMethod.SpecifiedPickupDirectory, false, true},
-{SmtpDeliveryMethod.PickupDirectoryFromIis,    false, false },
+                {SmtpDeliveryMethod.Network,        true, null },
+                {SmtpDeliveryMethod.SpecifiedPickupDirectory, null, true},
+                {SmtpDeliveryMethod.PickupDirectoryFromIis,    null, null },
             };
 
         static readonly Expression<Func<SmtpConfigurationEntity, string>> ToStringExpression = e => e.name;

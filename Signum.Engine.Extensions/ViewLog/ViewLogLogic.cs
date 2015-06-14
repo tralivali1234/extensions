@@ -11,11 +11,16 @@ using Signum.Entities.Basics;
 using Signum.Utilities;
 using Signum.Engine.Basics;
 using Signum.Entities.ViewLog;
+using Signum.Entities.DynamicQuery;
+using Signum.Engine.DynamicQuery;
+using System.IO;
 
 namespace Signum.Engine.ViewLog
 {
     public static class ViewLogLogic
     {
+        public static Func<DynamicQueryManager.ExecuteType, object, BaseQueryRequest, IDisposable> QueryExecutedLog;
+
         static Expression<Func<Entity, IQueryable<ViewLogEntity>>> ViewLogsExpression =
             a => Database.Query<ViewLogEntity>().Where(log => log.Target.RefersTo(a));
         public static IQueryable<ViewLogEntity> ViewLogs(this Entity a)
@@ -23,15 +28,13 @@ namespace Signum.Engine.ViewLog
             return ViewLogsExpression.Evaluate(a);
         }
 
-        public static HashSet<Type> Types = new HashSet<Type>();
+        public static Func<Type, bool> LogType = type => true;
+        public static Func<BaseQueryRequest, DynamicQueryManager.ExecuteType, bool> LogQuery = (request, type) => true;
 
-        static bool Started;
-        public static void Start(SchemaBuilder sb, DynamicQueryManager dqm, HashSet<Type> types)
+        public static void Start(SchemaBuilder sb, DynamicQueryManager dqm, HashSet<Type> registerExpression)
         {
             if (sb.NotDefined(MethodInfo.GetCurrentMethod()))
             {
-                Started = true;
-
                 sb.Include<ViewLogEntity>();
 
                 dqm.RegisterQuery(typeof(ViewLogEntity), () =>
@@ -48,33 +51,51 @@ namespace Signum.Engine.ViewLog
                         e.EndDate,
                     });
 
-                Types = types;
+                ExceptionLogic.DeleteLogs += ExceptionLogic_DeleteLogs;
 
-                var exp = Signum.Utilities.ExpressionTrees.Linq.Expr((Entity entity)=> entity.ViewLogs());
+                var exp = Signum.Utilities.ExpressionTrees.Linq.Expr((Entity entity) => entity.ViewLogs());
 
-                foreach (var t in types)
+                foreach (var t in registerExpression)
                 {
                     dqm.RegisterExpression(new ExtensionInfo(t, exp, exp.Body.Type, "ViewLogs", () => typeof(ViewLogEntity).NicePluralName()));
                 }
 
-                if (types.Contains(typeof(QueryEntity)))
-                {
-                    DynamicQueryManager.Current.QueryExecuted += Current_QueryExecuted;
-                }
-
-                ExceptionLogic.DeleteLogs += ExceptionLogic_DeleteLogs;
+                DynamicQueryManager.Current.QueryExecuted += Current_QueryExecuted;
             }
         }
 
-        static IDisposable Current_QueryExecuted(DynamicQueryManager.ExecuteType type, object queryName)
+        static IDisposable Current_QueryExecuted(DynamicQueryManager.ExecuteType type, object queryName, BaseQueryRequest request)
         {
-            if (type == DynamicQueryManager.ExecuteType.ExecuteQuery ||
-                type == DynamicQueryManager.ExecuteType.ExecuteGroupQuery)
-            {
-                return LogView(QueryLogic.GetQueryEntity(queryName).ToLite(), "Query");
-            }
+            if (request == null || !LogQuery(request, type))
+                return null;
 
-            return null;
+            var old = Connector.CurrentLogger;
+
+            StringWriter sw = new StringWriter();
+
+            Connector.CurrentLogger = old == null ? (TextWriter)sw : new DuplicateTextWriter(sw, old);
+
+            var viewLog = new ViewLogEntity
+            {
+                Target = QueryLogic.GetQueryEntity(queryName).ToLite(),
+                User = UserHolder.Current.ToLite(),
+                ViewAction = type.ToString(),
+            };
+
+            return new Disposable(() =>
+            {
+                try
+                {
+                    viewLog.EndDate = TimeZoneManager.Now;
+                    viewLog.Data = request.QueryUrl + "\r\n\r\n" + sw.ToString();
+                    using (ExecutionMode.Global())
+                        viewLog.Save();
+                }
+                finally
+                {
+                    Connector.CurrentLogger = old;
+                }
+            });
         }
 
         static void ExceptionLogic_DeleteLogs(DeleteLogParametersEntity parameters)
@@ -84,9 +105,6 @@ namespace Signum.Engine.ViewLog
 
         public static IDisposable LogView(Lite<IEntity> entity, string viewAction)
         {
-            if (!Started || !Types.Contains(entity.EntityType))
-                return null;
-
             var viewLog = new ViewLogEntity
             {
                 Target = (Lite<Entity>)entity,
@@ -102,5 +120,33 @@ namespace Signum.Engine.ViewLog
             });
         }
     }
-   
+
+    public class DuplicateTextWriter : TextWriter
+    {
+        public TextWriter First;
+        public TextWriter Second; 
+
+        public DuplicateTextWriter(TextWriter first, TextWriter second)
+        {
+            this.First = first;
+            this.Second = second;
+        }
+
+        public override void Write(char[] buffer, int index, int count)
+        {
+            First.Write(buffer, index, count);
+            Second.Write(buffer, index, count);
+        }
+
+        public override void Write(string value)
+        {
+            First.Write(value);
+            Second.Write(value);
+        }
+
+        public override Encoding Encoding
+        {
+            get { return Encoding.Default; }
+        }
+    }
 }

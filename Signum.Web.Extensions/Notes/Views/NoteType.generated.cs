@@ -9,7 +9,7 @@
 // </auto-generated>
 //------------------------------------------------------------------------------
 
-namespace Signum.Web.Notes.Views
+namespace ASP
 {
     using System;
     using System.Collections.Generic;
@@ -38,9 +38,9 @@ namespace Signum.Web.Notes.Views
     
     [System.CodeDom.Compiler.GeneratedCodeAttribute("RazorGenerator", "2.0.0.0")]
     [System.Web.WebPages.PageVirtualPathAttribute("~/Notes/Views/NoteType.cshtml")]
-    public partial class NoteType : System.Web.Mvc.WebViewPage<dynamic>
+    public partial class _Notes_Views_NoteType_cshtml : System.Web.Mvc.WebViewPage<dynamic>
     {
-        public NoteType()
+        public _Notes_Views_NoteType_cshtml()
         {
         }
         public override void Execute()

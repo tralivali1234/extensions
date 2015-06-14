@@ -279,17 +279,16 @@ namespace Signum.Engine.Mailing
             using (replacements.WithReplacedDatabaseName())
             {
                 var cmd = systemEmails.Select(se =>
-                        {
-                            try
-                            {
-                                return table.InsertSqlSync(SystemEmailLogic.CreateDefaultTemplate(se), includeCollections: true);
-                            }
-                            catch (Exception e)
-                            {
-                                return new SqlPreCommandSimple("Exception on SystemEmail {0}: {1}".FormatWith(se, e.Message));
-                            }
-                        })
-                        .Combine(Spacing.Double);
+                {
+                    try
+                    {
+                        return table.InsertSqlSync(SystemEmailLogic.CreateDefaultTemplate(se), includeCollections: true);
+                    }
+                    catch (Exception e)
+                    {
+                        return new SqlPreCommandSimple("Exception on SystemEmail {0}: {1}".FormatWith(se, e.Message));
+                    }
+                }).Combine(Spacing.Double);
 
                 if (cmd != null)
                     return SqlPreCommand.Combine(Spacing.Double, new SqlPreCommandSimple("DECLARE @idParent INT"), cmd);
@@ -302,10 +301,27 @@ namespace Signum.Engine.Mailing
         {
             var systemEmails = Database.Query<SystemEmailEntity>().Where(se => !se.EmailTemplates().Any(a => a.Active)).ToList();
 
+            List<string> exceptions = new List<string>();
+
             foreach (var se in systemEmails)
             {
-                SystemEmailLogic.CreateDefaultTemplate(se).Save();
+                try
+                {
+                    SystemEmailLogic.CreateDefaultTemplate(se).Save();
+                }
+                catch (Exception ex)
+                {
+                    exceptions.Add("{0} in {1}:\r\n{2}".FormatWith(ex.GetType().Name, se.FullClassName, ex.Message.Indent(4)));
+                }
             }
+
+            if (exceptions.Any())
+                throw new Exception(exceptions.ToString("\r\n\r\n"));
+        }
+
+        public static void Regenerate(EmailTemplateEntity et)
+        {
+            EmailTemplateParser.Regenerate(et, null, Schema.Current.Table<EmailTemplateEntity>()).ExecuteLeaves();
         }
     }
 }

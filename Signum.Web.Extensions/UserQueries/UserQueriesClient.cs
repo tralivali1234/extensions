@@ -96,8 +96,6 @@ namespace Signum.Web.UserQueries
                     new EntityOperationSettings<UserQueryEntity>(UserQueryOperation.Delete)
                     {
                         Click = ctx => Module["deleteUserQuery"](ctx.Options(), Finder.FindRoute( ((UserQueryEntity)ctx.Entity).Query.ToQueryName())),
-                        Contextual = { IsVisible = a => true },
-                        ContextualFromMany = { IsVisible = a => true },
                     }
                 });
 

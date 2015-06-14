@@ -351,6 +351,8 @@ namespace Signum.Engine.Word
                             Schema.Current.Table<WordTemplateEntity>().DeleteSqlSync(template),
                             Schema.Current.Table<FileEntity>().DeleteSqlSync(file));
 
+                    if (ex.Result == FixTokenResult.ReGenerateEntity)
+                        return Regenerate(template, replacements);
 
                     throw new InvalidOperationException("Unexcpected {0}".FormatWith(ex.Result));
                 }
@@ -362,6 +364,26 @@ namespace Signum.Engine.Word
             catch (Exception e)
             {
                 return new SqlPreCommandSimple("-- Exception in {0}: {1}".FormatWith(template.BaseToString(), e.Message));
+            }
+        }
+
+        public static void Regenerate(WordTemplateEntity template)
+        {
+            Regenerate(template, null).ExecuteLeaves();
+        }
+
+        private static SqlPreCommand Regenerate(WordTemplateEntity template, Replacements replacements)
+        {
+            var newTemplate = SystemWordTemplateLogic.CreateDefaultTemplate(template.SystemWordTemplate);
+
+            var file = template.Template.Retrieve();
+
+            using (file.AllowChanges())
+            {
+                file.BinaryFile = newTemplate.Template.Entity.BinaryFile;
+                file.FileName = newTemplate.Template.Entity.FileName;
+
+                return Schema.Current.Table<FileEntity>().UpdateSqlSync(file, comment: "WordTemplate Regenerated: " + template.Name);
             }
         }
 
@@ -385,12 +407,24 @@ namespace Signum.Engine.Word
 
         public static void GenerateDefaultTemplates()
         {
-            var systemEmails = Database.Query<SystemWordTemplateEntity>().Where(se => !se.WordTemplates().Any(a => a.Active)).ToList();
+            var systemWordTemplates = Database.Query<SystemWordTemplateEntity>().Where(se => !se.WordTemplates().Any(a => a.Active)).ToList();
 
-            foreach (var se in systemEmails)
+            List<string> exceptions = new List<string>();
+
+            foreach (var se in systemWordTemplates)
             {
-                SystemWordTemplateLogic.CreateDefaultTemplate(se).Save();
+                try
+                {
+                    SystemWordTemplateLogic.CreateDefaultTemplate(se).Save();
+                }
+                catch (Exception ex)
+                {
+                    exceptions.Add("{0} in {1}:\r\n{2}".FormatWith(ex.GetType().Name, se.FullClassName, ex.Message.Indent(4)));
+                }
             }
+
+            if (exceptions.Any())
+                throw new Exception(exceptions.ToString("\r\n\r\n"));
         }
     }
 }

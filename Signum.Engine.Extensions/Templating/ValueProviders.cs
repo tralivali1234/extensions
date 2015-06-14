@@ -315,7 +315,7 @@ namespace Signum.Engine.Templating
             if (entityToken == null)
                 entityToken = QueryUtils.Parse("Entity", DynamicQueryManager.Current.QueryDescription(token.QueryName), 0);
 
-            if (!entityToken.Type.IsAssignableFrom(Route.RootType))
+            if (!entityToken.Type.CleanType().IsAssignableFrom(Route.RootType))
                 addError(false, "The entity of {0} ({1}) is not compatible with the property route {2}".FormatWith(token.FullKey(), entityToken.FullKey(), Route.RootType.NiceName()));
 
             return entityToken;
@@ -397,15 +397,23 @@ namespace Signum.Engine.Templating
                     return result;
                 }
 
-                if(!(vp is TokenValueProvider))
+                var tvp = vp as TokenValueProvider;
+
+                if(tvp == null)
                 {
                     addError(false, "Variable '{0}' is not a token".FormatWith(v));
                     return result;
                 }
 
+                if (tvp.ParsedToken.QueryToken == null)
+                {
+                    addError(false, "Variable '{0}' is not a correctly parsed".FormatWith(v));
+                    return result;
+                }
+
                 var after = tokenString.TryAfter('.');
 
-                tokenString = ((TokenValueProvider)vp).ParsedToken.QueryToken.FullKey() + (after == null ? null : ("." + after));
+                tokenString = tvp.ParsedToken.QueryToken.FullKey() + (after == null ? null : ("." + after));
             }
 
             try

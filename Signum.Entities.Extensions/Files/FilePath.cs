@@ -112,12 +112,24 @@ namespace Signum.Entities.Files
 
         public string FullPhysicalPath
         {
-            get { return prefixPair == null ? null : Path.Combine(prefixPair.PhysicalPrefix, Sufix); }
+            get
+            {
+                if (prefixPair == null)
+                    throw new InvalidOperationException("prefixPair not set");
+
+                return Path.Combine(prefixPair.PhysicalPrefix, Sufix);
+            }
         }
 
         public string FullWebPath
         {
-            get { return prefixPair == null || string.IsNullOrEmpty(prefixPair.WebPrefix) ? null : prefixPair.WebPrefix + "/" + HttpFilePathUtils.UrlPathEncode(Sufix.Replace("\\", "/")); }
+            get
+            {
+                if (prefixPair == null)
+                    throw new InvalidOperationException("prefixPair not set");
+
+                return string.IsNullOrEmpty(prefixPair.WebPrefix) ? null : prefixPair.WebPrefix + "/" + HttpFilePathUtils.UrlPathEncode(Sufix.Replace("\\", "/"));
+            }
         }
 
         public override string ToString()
@@ -125,7 +137,8 @@ namespace Signum.Entities.Files
             return "{0} - {1}".FormatWith(FileName, ((long)FileLength).ToComputerSize(true));
         }
     }
-
+   
+    [Serializable]
     public class PrefixPair 
     {
         public PrefixPair(string physicalPrefix)

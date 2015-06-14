@@ -30,6 +30,8 @@ using Signum.Entities.Processes;
 using Signum.Web.Cultures;
 using Signum.Web.Templating;
 using Signum.Web.Mappings;
+using Signum.Web.Omnibox;
+using Signum.Engine.Authorization;
 
 namespace Signum.Web.Mailing
 {
@@ -37,6 +39,7 @@ namespace Signum.Web.Mailing
     {
         public static string ViewPrefix = "~/Mailing/Views/{0}.cshtml";
         public static JsModule Module = new JsModule("Extensions/Signum.Web.Extensions/Mailing/Scripts/Mailing");
+        public static JsModule AsyncEmailSenderModule = new JsModule("Extensions/Signum.Web.Extensions/Mailing/Scripts/AsyncEmailSender");
 
         private static QueryTokenEntity ParseQueryToken(string tokenString, string queryRuntimeInfoInput)
         {
@@ -175,6 +178,8 @@ namespace Signum.Web.Mailing
                     .SetProperty(a => a.Body, new Mapping<string>(null, ctx =>
                     {
                         throw new InvalidOperationException();
+						//if (!ctx.HasInput)
+                        //    return ctx.None();
                         //var email = ((EmailMessageEntity)ctx.Parent.UntypedValue);
 
                         //return SetWebMailBody(ctx.Value, new WebMailOptions

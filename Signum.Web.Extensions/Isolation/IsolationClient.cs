@@ -9,8 +9,11 @@ using Signum.Entities;
 using Signum.Web.Operations;
 using Signum.Entities.Isolation;
 using Signum.Engine.Isolation;
+using System.Web.Mvc;
 using System.Web.Http.Controllers;
 using System.Web.Http.Filters;
+using System.Web.Mvc;
+using Signum.Web.Maps;
 
 namespace Signum.Web.Isolation
 {
@@ -18,6 +21,7 @@ namespace Signum.Web.Isolation
     {
         public static string ViewPrefix = "~/Isolation/Views/{0}.cshtml";
         public static JsModule Module = new JsModule("Extensions/Signum.Web.Extensions/Isolation/Scripts/Isolation");
+        public static JsModule ColorsModule = new JsModule("Extensions/Signum.Web.Extensions/Isolation/Scripts/IsolationColors");
 
         public static void Start()
         {
@@ -40,6 +44,8 @@ namespace Signum.Web.Isolation
                 Constructor.Manager.PreConstructors += ctx =>
                     !MixinDeclarations.IsDeclared(ctx.Type, typeof(IsolationMixin)) ? null :
                     IsolationEntity.Override(GetIsolation(ctx.ActionContext)); 
+
+                MapClient.GetColorProviders += GetMapColors;
             }
         }
 
@@ -63,6 +69,31 @@ namespace Signum.Web.Isolation
                 return Lite.Parse<IsolationEntity>(isolation);
 
             return null;
+        }
+
+        static MapColorProvider[] GetMapColors()
+        {
+            var strategies = IsolationLogic.GetIsolationStrategies().SelectDictionary(t => Navigator.ResolveWebTypeName(t), p => p);
+
+            return new[]
+            {
+                new MapColorProvider
+                { 
+                    Name = "isolation", 
+                    NiceName = "Isolation", 
+                    GetJsProvider = ColorsModule["isolationColors"](MapClient.NodesConstant),
+                    AddExtra = t => 
+                    {
+                        var s = strategies.TryGetS(t.webTypeName);
+
+                        if (s == null)
+                            return;
+                        
+                        t.extra["isolation"] = s.ToString();
+                    },
+                    Order = 3,
+                },
+            };
         }
     }
 
