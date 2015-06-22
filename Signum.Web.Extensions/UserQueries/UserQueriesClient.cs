@@ -42,7 +42,7 @@ namespace Signum.Web.UserQueries
             //object queryName = QueryLogic.ToQueryName(queryKey);
             //QueryDescription qd = DynamicQueryManager.Current.QueryDescription(queryName);
             //return new QueryTokenEntity(QueryUtils.Parse(tokenStr, qd, opts));
-        });
+        }, null);
 
         public static void Start()
         {

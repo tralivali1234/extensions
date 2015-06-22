@@ -49,7 +49,7 @@ namespace Signum.Web.Chart
 
                     //QueryDescription qd = DynamicQueryManager.Current.QueryDescription(queryName);
                     //return new QueryTokenEntity(QueryUtils.Parse(tokenStr, qd, ops | (chart.GroupResults ? SubTokensOptions.CanAggregate : 0)));
-                });
+                }, null);
 
                 Navigator.AddSettings(new List<EntitySettings>
                 {

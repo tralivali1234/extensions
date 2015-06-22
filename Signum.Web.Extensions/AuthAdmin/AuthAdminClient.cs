@@ -139,7 +139,7 @@ namespace Signum.Web.AuthAdmin
                     //        SymbolLogic<TypeConditionSymbol>.ToSymbol(d["ConditionName"]),
                     //        ParseTypeAllowed(d.SubDictionary("Allowed")))
                     //   ).ToReadOnly())))
-                        ))))
+                        , null))))
             });
 
             RegisterSaveButton<TypeRulePack>("types", false);

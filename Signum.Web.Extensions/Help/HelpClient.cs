@@ -72,7 +72,7 @@ namespace Signum.Web.Help
                         throw new InvalidOperationException();
                         //var type = ctx.FindParent<EntityHelpEntity>().Value.Type.ToType();
                         //return PropertyRoute.Parse(type, ctx.Input).ToPropertyRouteEntity();
-                    }));
+                    }, null));
 
                 RegisterHelpRoutes();
 

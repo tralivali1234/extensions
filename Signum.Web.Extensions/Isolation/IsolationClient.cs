@@ -12,7 +12,6 @@ using Signum.Engine.Isolation;
 using System.Web.Mvc;
 using System.Web.Http.Controllers;
 using System.Web.Http.Filters;
-using System.Web.Mvc;
 using Signum.Web.Maps;
 
 namespace Signum.Web.Isolation
@@ -97,7 +96,7 @@ namespace Signum.Web.Isolation
         }
     }
 
-    public class IsolationFilterAttribute : ActionFilterAttribute
+    public class IsolationFilterAttribute : System.Web.Http.Filters.ActionFilterAttribute
     {
         static string Key = "isolationDisposer";
 

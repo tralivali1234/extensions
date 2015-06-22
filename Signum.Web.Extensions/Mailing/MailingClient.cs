@@ -104,7 +104,7 @@ namespace Signum.Web.Mailing
                                 throw new InvalidOperationException();
                                 //string tokenStr = UserAssetsHelper.GetTokenString(ctx);
                                 //return ParseQueryToken(tokenStr, ctx.Parent.Parent.Parent.Inputs[TypeContextUtilities.Compose("Query", EntityBaseKeys.RuntimeInfo)]);
-                            })),
+                            }, null)),
                     },
 
                     new EmbeddedEntitySettings<EmailTemplateRecipientEntity>() 
@@ -116,7 +116,7 @@ namespace Signum.Web.Mailing
                                 throw new InvalidOperationException();
                                 //string tokenStr = UserAssetsHelper.GetTokenString(ctx);
                                 //return ParseQueryToken(tokenStr, ctx.Parent.Parent.Parent.Parent.Inputs[TypeContextUtilities.Compose("Query", EntityBaseKeys.RuntimeInfo)]);
-                            }))
+                            }, null))
                     },
 
                     new EntitySettings<SmtpConfigurationEntity> { PartialViewName = e => ViewPrefix.FormatWith("SmtpConfiguration") },
@@ -188,7 +188,7 @@ namespace Signum.Web.Mailing
                         //     UntrustedImage = null,
                         //     Url = RouteHelper.New(),
                         //});
-                    })); 
+                    }, null)); 
             }
         }
 

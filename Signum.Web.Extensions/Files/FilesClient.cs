@@ -104,7 +104,7 @@ namespace Signum.Web.Files
                         //    else
                         //        return baseMapping(ctx);
                         //}
-                    });
+                    }, null);
 
                     es.MappingMain = es.MappingLine;
 
@@ -166,7 +166,7 @@ namespace Signum.Web.Files
                         //    else
                         //        return baseMapping(ctx);
                         //}
-                    });
+                    }, null);
 
                     FileLogic.DownloadFileUrl = DownloadFileUrl;
 
@@ -213,7 +213,7 @@ namespace Signum.Web.Files
                         //    else
                         //        return baseMapping(ctx);
                         //}
-                    });
+                    }, null);
                 }
 
                 var dqm = DynamicQueryManager.Current;

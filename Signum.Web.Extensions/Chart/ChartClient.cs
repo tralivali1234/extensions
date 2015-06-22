@@ -92,18 +92,18 @@ namespace Signum.Web.Chart
                     token = token.Parent;
 
                 return new QueryTokenEntity(token);
-            }))
+            }, null))
             .SetProperty(ct => ct.DisplayName, new Mapping<string>(null, ctx =>
             {
                 if (ctx.JToken == null)
                     return ctx.None();
 
                 return ctx.JToken.Value<string>();
-            }));
+            }, null));
 
         public static EntityMapping<ChartRequest> MappingChartRequest = new EntityMapping<ChartRequest>(true)
-            .SetProperty(cr => cr.Filters, new Mapping<List<Entities.DynamicQuery.Filter>>(null, ctx => ExtractChartFilters(ctx)))
-            .SetProperty(cr => cr.Orders, new Mapping<List<Entities.DynamicQuery.Order>>(null, ctx => ExtractChartOrders(ctx)))
+            .SetProperty(cr => cr.Filters, new Mapping<List<Entities.DynamicQuery.Filter>>(null, ctx => ExtractChartFilters(ctx), null))
+            .SetProperty(cr => cr.Orders, new Mapping<List<Entities.DynamicQuery.Order>>(null, ctx => ExtractChartOrders(ctx), null))
             .SetProperty(cb => cb.Columns, new MListCorrelatedOrDefaultMapping<ChartColumnEntity>(MappingChartColumn));
 
 
