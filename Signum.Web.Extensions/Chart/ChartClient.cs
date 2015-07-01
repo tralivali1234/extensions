@@ -57,6 +57,7 @@ namespace Signum.Web.Chart
                 Navigator.AddSettings(new List<EntitySettings>
                 {
                     new EmbeddedEntitySettings<ChartRequest>(),
+                    new EmbeddedEntitySettings<ChartParameterEntity>(),
                     new EmbeddedEntitySettings<ChartColumnEntity> { PartialViewName = _ => ViewPrefix.FormatWith("ChartColumn") },
                     new EmbeddedEntitySettings<ChartScriptColumnEntity>{ PartialViewName = _ => ViewPrefix.FormatWith("ChartScriptColumn") },
                     new EmbeddedEntitySettings<ChartScriptParameterEntity>{ PartialViewName = _ => ViewPrefix.FormatWith("ChartScriptParameter") },
@@ -104,8 +105,8 @@ namespace Signum.Web.Chart
         public static EntityMapping<ChartRequest> MappingChartRequest = new EntityMapping<ChartRequest>(true)
             .SetProperty(cr => cr.Filters, new Mapping<List<Entities.DynamicQuery.Filter>>(null, ctx => ExtractChartFilters(ctx), null))
             .SetProperty(cr => cr.Orders, new Mapping<List<Entities.DynamicQuery.Order>>(null, ctx => ExtractChartOrders(ctx), null))
-            .SetProperty(cb => cb.Columns, new MListCorrelatedOrDefaultMapping<ChartColumnEntity>(MappingChartColumn));
-
+            .SetProperty(cb => cb.Columns, new MListCorrelatedOrDefaultMapping<ChartColumnEntity>(MappingChartColumn))
+            .SetProperty(cb => cb.Parameters, new MListDictionaryMapping<ChartParameterEntity, string>(p => p.Name) { OnlyIfPossible = true });
 
         public class MListCorrelatedOrDefaultMapping<S> : MListMapping<S>
         {
@@ -245,14 +246,11 @@ namespace Signum.Web.Chart
             return (order.OrderType == OrderType.Descending ? "-" : "") + order.Token.Token.FullKey();
         }
 
-        public static void SetupParameter(ValueLine vl, ChartColumnEntity column, ChartScriptParameterEntity scriptParameter)
+        public static void SetupParameter(ValueLine vl, ChartParameterEntity parameter)
         {
-            if (scriptParameter == null)
-            {
-                vl.Visible = false;
-                return;
-            }
+            var scriptParameter = parameter.ScriptParameter;
 
+            vl.LabelColumns = new BsColumn(6);
             vl.LabelText = scriptParameter.Name;
 
             if (scriptParameter.Type == ChartParameterType.Number ||scriptParameter.Type == ChartParameterType.String)
@@ -263,7 +261,7 @@ namespace Signum.Web.Chart
             {
                 vl.ValueLineType = ValueLineType.Enum;
 
-                var token = column.Token.Try(t => t.Token);
+                var token = parameter.GetToken();
 
                 var compatible = scriptParameter.GetEnumValues().Where(a => a.CompatibleWith(token)).ToList();
                 vl.ReadOnly = compatible.Count <= 1;
