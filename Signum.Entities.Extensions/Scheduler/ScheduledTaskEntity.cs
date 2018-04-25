@@ -14,7 +14,10 @@ namespace Signum.Entities.Scheduler
     [Serializable, EntityKind(EntityKind.Main, EntityData.Master)]
     public class ScheduledTaskEntity : Entity
     {
-        [ImplementedBy(typeof(ScheduleRuleDailyEntity), typeof(ScheduleRuleWeeklyEntity), typeof(ScheduleRuleWeekDaysEntity), typeof(ScheduleRuleMinutelyEntity), typeof(ScheduleRuleHourlyEntity))]
+        [ImplementedBy(
+            typeof(ScheduleRuleMinutelyEntity), 
+            typeof(ScheduleRuleWeekDaysEntity), 
+            typeof(ScheduleRuleMonthsEntity))]
         [NotNullValidator]
         public IScheduleRuleEntity Rule { get; set; }
 
@@ -23,16 +26,13 @@ namespace Signum.Entities.Scheduler
         public ITaskEntity Task { get; set; }
 
         public bool Suspended { get; set; }
-
-        [NotNullable, SqlDbType(Size = 100)]
+        
         [StringLengthValidator(AllowNulls = false, Min = 3, Max = 100)]
         public string MachineName { get; set; } = None;
 
-        [NotNullable]
         [NotNullValidator]
         public Lite<IUserEntity> User { get; set; }
 
-        [NotNullable, SqlDbType(Size = 100)]
         [StringLengthValidator(AllowNulls = false, Min = 3, Max = 100)]
         public string ApplicationName { get; set; } = None;
 
@@ -51,17 +51,18 @@ namespace Signum.Entities.Scheduler
         public static DeleteSymbol<ScheduledTaskEntity> Delete;
     }
 
-    public enum TaskMessage
+    public enum ITaskMessage
     {
         Execute,
         Executions,
-        LastExecution
+        LastExecution,
+        ExceptionLines
     }
 
     [AutoInit]
-    public static class TaskOperation
+    public static class ITaskOperation
     {
-        public static ConstructSymbol<IEntity>.From<ITaskEntity> ExecuteSync;
+        public static ConstructSymbol<ScheduledTaskLogEntity>.From<ITaskEntity> ExecuteSync;
         public static ExecuteSymbol<ITaskEntity> ExecuteAsync;
     }
 

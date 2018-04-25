@@ -17,7 +17,6 @@ using System.Xml.Linq;
 
 namespace Signum.Engine.Authorization
 {
-
     public static class PermissionAuthLogic
     {
         static HashSet<PermissionSymbol> permissions = new HashSet<PermissionSymbol>();
@@ -62,10 +61,10 @@ namespace Signum.Engine.Authorization
 
         public static void AssertStarted(SchemaBuilder sb)
         {
-            sb.AssertDefined(ReflectionTools.GetMethodInfo(() => Start(null)));
+            sb.AssertDefined(ReflectionTools.GetMethodInfo(() => Start(null, null)));
         }
 
-        public static void Start(SchemaBuilder sb)
+        public static void Start(SchemaBuilder sb, DynamicQueryManager dqm)
         {
             if (sb.NotDefined(MethodInfo.GetCurrentMethod()))
             {
@@ -73,13 +72,23 @@ namespace Signum.Engine.Authorization
 
                 sb.Include<PermissionSymbol>();
 
-                SymbolLogic<PermissionSymbol>.Start(sb, () => RegisteredPermission.ToHashSet());
+                SymbolLogic<PermissionSymbol>.Start(sb, dqm, () => RegisteredPermission.ToHashSet());
+
+                sb.Include<RulePermissionEntity>()
+                   .WithUniqueIndex(rt => new { rt.Resource, rt.Role });
 
                 cache = new AuthCache<RulePermissionEntity, PermissionAllowedRule, PermissionSymbol, PermissionSymbol, bool>(sb,
-                    s=>s,
-                    s=>s,
+                    toKey: p => p,
+                    toEntity: p => p,
+                    isEquals: (p1, p2) => p1 == p2,
                     merger: new PermissionMerger(),
                     invalidateWithTypes: false);
+
+                sb.Schema.EntityEvents<RoleEntity>().PreUnsafeDelete += query =>
+                {
+                    Database.Query<RulePermissionEntity>().Where(r => query.Contains(r.Role.Entity)).UnsafeDelete();
+                    return null;
+                };
 
                 RegisterPermissions(BasicPermission.AdminRules, 
                     BasicPermission.AutomaticUpgradeOfProperties,
@@ -100,7 +109,14 @@ namespace Signum.Engine.Authorization
                     return cache.ImportXml(x, "Permissions", "Permission", roles,
                         s => SymbolLogic<PermissionSymbol>.TryToSymbol(replacements.Apply(replacementKey, s)), bool.Parse);
                 };
+
+                sb.Schema.Table<PermissionSymbol>().PreDeleteSqlSync += new Func<Entity, SqlPreCommand>(AuthCache_PreDeleteSqlSync);
             }
+        }
+
+        static SqlPreCommand AuthCache_PreDeleteSqlSync(Entity arg)
+        {
+            return Administrator.DeleteWhereScript((RulePermissionEntity rt) => rt.Resource, (PermissionSymbol)arg);
         }
 
         public static void AssertAuthorized(this PermissionSymbol permissionSymbol)
@@ -119,22 +135,27 @@ namespace Signum.Engine.Authorization
 
         public static bool IsAuthorized(this PermissionSymbol permissionSymbol)
         {
+            AssertRegistered(permissionSymbol);
+
             if (!AuthLogic.IsEnabled || ExecutionMode.InGlobal || cache == null)
                 return true;
 
-            return cache.GetAllowed(RoleEntity.Current.ToLite(), permissionSymbol);
+            return cache.GetAllowed(RoleEntity.Current, permissionSymbol);
         }
-
+        
         public static bool IsAuthorized(this PermissionSymbol permissionSymbol, Lite<RoleEntity> role)
         {
-            //if (permissionSymbol == BasicPermission.AutomaticUpgradeOfOperations ||
-            //  permissionSymbol == BasicPermission.AutomaticUpgradeOfProperties ||
-            //  permissionSymbol == BasicPermission.AutomaticUpgradeOfQueries)
-            //    return true;
+            AssertRegistered(permissionSymbol);
 
             return cache.GetAllowed(role, permissionSymbol);
         }
 
+        private static void AssertRegistered(PermissionSymbol permissionSymbol)
+        {
+            if (!permissions.Contains(permissionSymbol))
+                throw new InvalidOperationException($"The permission '{permissionSymbol}' has not been registered");
+        }
+        
         public static DefaultDictionary<PermissionSymbol, bool> ServicePermissionRules()
         {
             return cache.GetDefaultDictionary();

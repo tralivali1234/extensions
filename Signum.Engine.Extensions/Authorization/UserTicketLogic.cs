@@ -30,11 +30,8 @@ namespace Signum.Engine.Authorization
                 IsStarted = true;
 
                 AuthLogic.AssertStarted(sb);
-                sb.Include<UserTicketEntity>();
-
-                dqm.RegisterQuery(typeof(UserTicketEntity), () =>
-                    from ut in Database.Query<UserTicketEntity>()
-                    select new
+                sb.Include<UserTicketEntity>()
+                    .WithQuery(dqm, () => ut => new
                     {
                         Entity = ut,
                         ut.Id,
@@ -46,7 +43,7 @@ namespace Signum.Engine.Authorization
 
                 dqm.RegisterExpression((UserEntity u) => u.UserTickets(), () => typeof(UserTicketEntity).NicePluralName());
 
-                sb.Schema.EntityEvents<UserEntity>().Saving += UserTicketLogic_Saving; 
+                sb.Schema.EntityEvents<UserEntity>().Saving += UserTicketLogic_Saving;
             }
         }
 
@@ -91,17 +88,17 @@ namespace Signum.Engine.Authorization
             using (AuthLogic.Disable())
             using (Transaction tr = new Transaction())
             {
-                Tuple<PrimaryKey, string> pair = UserTicketEntity.ParseTicket(ticket);
+                var pair = UserTicketEntity.ParseTicket(ticket);
 
-                UserEntity user = Database.Retrieve<UserEntity>(pair.Item1);
+                UserEntity user = Database.Retrieve<UserEntity>(pair.userId);
                 CleanExpiredTickets(user);
 
-                UserTicketEntity userTicket = user.UserTickets().SingleOrDefaultEx(t => t.Ticket == pair.Item2);
+                UserTicketEntity userTicket = user.UserTickets().SingleOrDefaultEx(t => t.Ticket == pair.ticket);
                 if (userTicket == null)
                 {
                     throw new UnauthorizedAccessException("User attempted to log-in with an invalid ticket");
                 }
-                
+
                 UserTicketEntity result = new UserTicketEntity
                 {
                     User = user.ToLite(),

@@ -8,10 +8,11 @@ using Signum.Utilities;
 using System.Reflection;
 using Signum.Entities.Authorization;
 using Signum.Utilities.ExpressionTrees;
+using Signum.Entities;
 
 namespace Signum.Entities.Basics
 {
-    [Serializable, EntityKind(EntityKind.String, EntityData.Master)]
+    [Serializable, EntityKind(EntityKind.String, EntityData.Master), InTypeScript(Undefined = false)]
     public class CultureInfoEntity : Entity
     {
         public CultureInfoEntity() { }
@@ -23,13 +24,18 @@ namespace Signum.Entities.Basics
             EnglishName = ci.EnglishName;
         }
 
-        [NotNullable, SqlDbType(Size = 10), UniqueIndex]
+        [UniqueIndex]
         [StringLengthValidator(AllowNulls = false, Min = 2, Max = 10)]
         public string Name { get; set; }
 
         public string NativeName { get; private set; }
 
         public string EnglishName { get; private set; }
+
+        /// <summary>
+        /// Used for Culture that can be translated but not selected, like Hidden
+        /// </summary>
+        public bool Hidden { get; set; }
 
         protected override string PropertyValidation(PropertyInfo pi)
         {
@@ -47,20 +53,24 @@ namespace Signum.Entities.Basics
 
             return base.PropertyValidation(pi);
         }
-
-        protected override void PreSaving(ref bool graphModified)
+        
+        protected override void PreSaving(PreSavingContext ctx)
         {
             try
             {
                 var ci = CultureInfo.GetCultureInfo(Name);
-                EnglishName = ci.EnglishName;
-                NativeName = ci.NativeName;
+
+                //To be more resilient with diferent versions of windows 
+                if (this.IsGraphModified || EnglishName == null)
+                    EnglishName = ci.EnglishName;
+                if (this.IsGraphModified || NativeName == null)
+                    NativeName = ci.NativeName;
             }
             catch (CultureNotFoundException)
             {
             }
 
-            base.PreSaving(ref graphModified);
+            base.PreSaving(ctx);
         }
 
         static Expression<Func<CultureInfoEntity, string>> ToStringExpression = e => e.EnglishName;

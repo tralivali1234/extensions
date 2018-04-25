@@ -13,20 +13,31 @@ using System.Web.Mvc;
 using Signum.Utilities;
 using Signum.Engine.Authorization;
 using Signum.Entities.Authorization;
+using Signum.Web.Dashboard;
 
 namespace Signum.Web.Omnibox
 {
     public static class OmniboxClient
     {
+        static Func<bool> CanSeeFunc;
+        public static bool CanSee()
+        {
+            return CanSeeFunc == null || CanSeeFunc();
+        }
+
+        public static string ViewPrefix = "~/Omnibox/Views/{0}.cshtml";
         public static JsModule Module = new JsModule("Extensions/Signum.Web.Extensions/Omnibox/Scripts/Omnibox");
         static Dictionary<Type, OmniboxProviderBase> Providers = new Dictionary<Type, OmniboxProviderBase>();
 
-        public static void Start()
+        public static void Start(Func<bool> canSee)
         {
             if (Navigator.Manager.NotDefined(MethodInfo.GetCurrentMethod()))
             {
+                CanSeeFunc = canSee;
+
                 Navigator.RegisterArea(typeof(OmniboxClient));
 
+              
                 OmniboxParser.Manager = new WebOmniboxManager();
             }
         }
@@ -44,9 +55,9 @@ namespace Signum.Web.Omnibox
             {
                 var innerHtml = MvcHtmlString.Create(helpResult.Text.Replace("(", "<b>").Replace(")", "</b>"));
                 
-                if (helpResult.OmniboxResultType != null)
+                if (helpResult.ReferencedType != null)
                 {
-                    var icon = Providers[helpResult.OmniboxResultType].Icon();
+                    var icon = Providers[helpResult.ReferencedType].Icon();
                     innerHtml = icon.Concat(innerHtml);
                 }
 

@@ -39,6 +39,7 @@ using Signum.Engine.DiffLog;
 using Signum.Entities.Isolation;
 using Signum.Engine.Isolation;
 using Signum.Engine.Help;
+using System.Threading;
 
 namespace Signum.Services
 {
@@ -197,7 +198,7 @@ namespace Signum.Services
         public HashSet<object> AllowedQueries()
         {
             return Return(MethodInfo.GetCurrentMethod(),
-            () => DynamicQueryManager.Current.GetAllowedQueryNames().ToHashSet());
+            () => DynamicQueryManager.Current.GetAllowedQueryNames(false).ToHashSet());
         }
 
         #endregion
@@ -237,10 +238,10 @@ namespace Signum.Services
                () => OperationAuthLogic.SetOperationRules(rules));
         }
 
-        public Dictionary<OperationSymbol, OperationAllowed> AllowedOperations()
+        public Dictionary<(OperationSymbol operation, Type type), OperationAllowed> AllowedOperations()
         {
             return Return(MethodInfo.GetCurrentMethod(),
-            () => OperationAuthLogic.AllowedOperations());
+                () => OperationAuthLogic.AllowedOperations());
         }
         #endregion
 
@@ -248,7 +249,7 @@ namespace Signum.Services
         public ResultTable ExecuteChart(ChartRequest request)
         {
             return Return(MethodInfo.GetCurrentMethod(),
-               () => ChartLogic.ExecuteChart(request));
+               () => ChartLogic.ExecuteChartAsync(request, CancellationToken.None).Result);
         }
 
         public List<Lite<UserChartEntity>> GetUserCharts(object queryName)
@@ -299,7 +300,7 @@ namespace Signum.Services
         public byte[] ExecutePlainExcel(QueryRequest request)
         {
             return Return(MethodInfo.GetCurrentMethod(),
-                () => ExcelLogic.ExecutePlainExcel(request));
+                () => ExcelLogic.ExecutePlainExcel(request, QueryUtils.GetNiceName(request.QueryName)));
         }
 
         #endregion

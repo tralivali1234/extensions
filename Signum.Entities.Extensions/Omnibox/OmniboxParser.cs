@@ -12,6 +12,7 @@ using System.Collections.Concurrent;
 using System.Globalization;
 using Signum.Entities.Authorization;
 using Signum.Entities.UserAssets;
+using Newtonsoft.Json;
 
 namespace Signum.Entities.Omnibox
 {
@@ -32,17 +33,23 @@ namespace Signum.Entities.Omnibox
         }
 
         public static List<IOmniboxResultGenerator> Generators = new List<IOmniboxResultGenerator>();
+        
+        static string ident = @"[_\p{Lu}\p{Ll}\p{Lt}\p{Lm}\p{Lo}\p{Nl}][\p{Lu}\p{Ll}\p{Lt}\p{Lm}\p{Lo}\p{Nl}\p{Mn}\p{Mc}\p{Nd}\p{Pc}\p{Cf}]*";
+
+        static string guid = @"[A-F0-9]{8}(?:-[A-F0-9]{4}){3}-[A-F0-9]{12}";
+
+        static string symbol = @"[\.\,;!?@#$%&/\\\(\)\^\*\[\]\{\}\-+]";
 
         static readonly Regex tokenizer = new Regex(
-@"(?<entity>[a-zA-Z_][a-zA-Z0-9_]*;(\d+|[A-F0-9]{8}(?:-[A-F0-9]{4}){3}-[A-F0-9]{12}))|
+$@"(?<entity>{ident};(\d+|{guid}))|
 (?<space>\s+)|
-(?<guid>[A-F0-9]{8}(?:-[A-F0-9]{4}){3}-[A-F0-9]{12})|
-(?<ident>[a-zA-Z_][a-zA-Z0-9_]*)|
-(?<ident>\[[a-zA-Z_][a-zA-Z0-9_]*\])|
+(?<guid>{guid})|
+(?<ident>{ident})|
+(?<ident>\[{ident}\])|
 (?<number>[+-]?\d+(\.\d+)?)|
 (?<string>("".*?(""|$)|\'.*?(\'|$)))|
-(?<comparer>(" + FilterValueConverter.OperationRegex + @"))|
-(?<symbol>[\.\,;!?@#$%&/\\\(\)\^\*\[\]\{\}\-+])", 
+(?<comparer>({ FilterValueConverter.OperationRegex}))|
+(?<symbol>{symbol})", 
   RegexOptions.ExplicitCapture | RegexOptions.IgnorePatternWhitespace | RegexOptions.IgnoreCase);
 
         public static int MaxResults = 20;
@@ -61,6 +68,8 @@ namespace Signum.Entities.Omnibox
 
             if (IsHelp(omniboxQuery))
             {
+                result.Add(new HelpOmniboxResult { Text = OmniboxMessage.Omnibox_OmniboxSyntaxGuide.NiceToString() });
+
                 foreach (var generator in Generators)
                 {
                     if (ct.IsCancellationRequested)
@@ -69,14 +78,9 @@ namespace Signum.Entities.Omnibox
                     result.AddRange(generator.GetHelp());
                 }
 
-                string matchingOptions = OmniboxMessage.Omnibox_MatchingOptions.NiceToString();
-                result.Add(new HelpOmniboxResult { Text = matchingOptions });
-
-                string databaseAccess = OmniboxMessage.Omnibox_DatabaseAccess.NiceToString();
-                result.Add(new HelpOmniboxResult { Text = databaseAccess });
-
-                string disambiguate = OmniboxMessage.Omnibox_Disambiguate.NiceToString();
-                result.Add(new HelpOmniboxResult { Text = disambiguate });
+                result.Add(new HelpOmniboxResult { Text = OmniboxMessage.Omnibox_MatchingOptions.NiceToString() });
+                result.Add(new HelpOmniboxResult { Text = OmniboxMessage.Omnibox_DatabaseAccess.NiceToString() });
+                result.Add(new HelpOmniboxResult { Text = OmniboxMessage.Omnibox_Disambiguate.NiceToString() });
 
                 return result.ToList();
             }
@@ -135,6 +139,29 @@ namespace Signum.Entities.Omnibox
 
             return result;
         }
+
+        public static Dictionary<string, V> ToOmniboxPascalDictionary<T, V>(this IEnumerable<T> collection, Func<T, string> getKey, Func<T, V> getValue)
+        {
+            Dictionary<string, V> result = new Dictionary<string, V>();
+            foreach (var item in collection)
+            {
+                var key = getKey(item).ToOmniboxPascal();
+                if (result.ContainsKey(key))
+                {
+                    for (int i = 1; ; i++)
+                    {
+                        var newKey = key + $"(Duplicated{(i == 1 ? "" : (" "  + i.ToString()))}!)";
+                        if (!result.ContainsKey(newKey))
+                        {
+                            key = newKey;
+                            break;
+                        }
+                    }
+                }
+                result.Add(key, getValue(item));
+            }
+            return result;
+        }
     }
 
     public abstract class OmniboxManager
@@ -162,7 +189,7 @@ namespace Signum.Entities.Omnibox
         public Dictionary<string, object> GetQueries()
         {
             return queries.GetOrAdd(CultureInfo.CurrentCulture, ci =>
-                 GetAllQueryNames().ToDictionary(qn => QueryUtils.GetNiceName(qn).ToOmniboxPascal(), "Translated QueryNames"));
+                 GetAllQueryNames().ToOmniboxPascalDictionary(qn => QueryUtils.GetNiceName(qn), qn => qn));
         }
 
         protected abstract IEnumerable<Type> GetAllTypes();
@@ -172,20 +199,26 @@ namespace Signum.Entities.Omnibox
         public Dictionary<string, Type> Types()
         {
             return types.GetOrAdd(CultureInfo.CurrentUICulture, ci =>
-               GetAllTypes().Where(t => !t.IsEnumEntityOrSymbol()).ToDictionary(t => t.NicePluralName().ToOmniboxPascal(), "Translated Types"));
+               GetAllTypes().Where(t => !t.IsEnumEntityOrSymbol()).ToOmniboxPascalDictionary(t => t.NicePluralName(), t => t));
         }
     }
 
     public abstract class OmniboxResult
     {
         public float Distance;
+
+        public string ResultTypeName => GetType().Name;
     }
 
     public class HelpOmniboxResult : OmniboxResult
     {
         public string Text { get; set; }
-        public Type OmniboxResultType { get; set; }
-
+        
+        [JsonIgnore]
+        public Type ReferencedType { get; set; }
+        
+        public string ReferencedTypeName => this.ReferencedType?.Name;
+        
         public override string ToString()
         {
             return "";

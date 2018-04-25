@@ -111,43 +111,14 @@ Write(Html.EntityLine(e, f => f.FileType));
             #line hidden
             
             #line 8 "..\..\Files\Views\FilePath.cshtml"
-Write(Html.ValueLine(e, f => f.Sufix));
+Write(Html.ValueLine(e, f => f.Suffix));
 
             
             #line default
             #line hidden
             
             #line 8 "..\..\Files\Views\FilePath.cshtml"
-                                    
-
-    
-            
-            #line default
-            #line hidden
-            
-            #line 10 "..\..\Files\Views\FilePath.cshtml"
-Write(Html.ValueLine(e, f => f.FullPhysicalPath));
-
-            
-            #line default
-            #line hidden
-            
-            #line 10 "..\..\Files\Views\FilePath.cshtml"
-                                               
-    
-            
-            #line default
-            #line hidden
-            
-            #line 11 "..\..\Files\Views\FilePath.cshtml"
-Write(Html.ValueLine(e, f => f.FullWebPath));
-
-            
-            #line default
-            #line hidden
-            
-            #line 11 "..\..\Files\Views\FilePath.cshtml"
-                                          
+                                     
 }
             
             #line default

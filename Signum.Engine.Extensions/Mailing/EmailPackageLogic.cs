@@ -15,6 +15,7 @@ using Signum.Utilities;
 using Signum.Engine.Scheduler;
 using Signum.Engine.Authorization;
 using Signum.Utilities.ExpressionTrees;
+using Signum.Entities.Templating;
 
 namespace Signum.Engine.Mailing
 {
@@ -49,13 +50,21 @@ namespace Signum.Engine.Mailing
         {
             if (sb.NotDefined(MethodInfo.GetCurrentMethod()))
             {
-                sb.Include<EmailPackageEntity>();
+                sb.Schema.Settings.AssertImplementedBy((ProcessEntity p) => p.Data, typeof(EmailPackageEntity));
+                sb.Include<EmailPackageEntity>()
+                    .WithQuery(dqm, () => e => new
+                    {
+                        Entity = e,
+                        e.Id,
+                        e.Name,
+                    });
 
                 dqm.RegisterExpression((EmailPackageEntity ep) => ep.Messages(), () => EmailMessageMessage.Messages.NiceToString());
                 dqm.RegisterExpression((EmailPackageEntity ep) => ep.RemainingMessages(), () => EmailMessageMessage.RemainingMessages.NiceToString());
                 dqm.RegisterExpression((EmailPackageEntity ep) => ep.ExceptionMessages(), () => EmailMessageMessage.ExceptionMessages.NiceToString());
 
                 ProcessLogic.AssertStarted(sb);
+                ProcessLogic.Register(EmailMessageProcess.CreateEmailsSendAsync, new CreateEmailsSendAsyncProcessAlgorithm());
                 ProcessLogic.Register(EmailMessageProcess.SendEmails, new SendEmailProcessAlgorithm());
 
                 new Graph<ProcessEntity>.ConstructFromMany<EmailMessageEntity>(EmailMessageOperation.ReSendEmails)
@@ -80,25 +89,44 @@ namespace Signum.Engine.Mailing
                                 Subject = m.Subject,
                                 Template = m.Template,
                                 EditableMessage = m.EditableMessage,
-                                State = EmailMessageState.RecruitedForSending
+                                State = EmailMessageState.RecruitedForSending,
+                                Attachments = m.Attachments.Select(a => a.Clone()).ToMList()
                             }.Save();
                         }
 
                         return ProcessLogic.Create(EmailMessageProcess.SendEmails, emailPackage);
                     }
                 }.Register();
-
-                dqm.RegisterQuery(typeof(EmailPackageEntity), () =>
-                    from e in Database.Query<EmailPackageEntity>()
-                    select new
-                    {
-                        Entity = e,
-                        e.Id,
-                        e.Name,
-                    });
             }
         }
 
+        public static ProcessEntity SendMultipleEmailsAsync(Lite<EmailTemplateEntity> template, List<Lite<Entity>> targets, ModelConverterSymbol converter)
+        {
+            return ProcessLogic.Create(EmailMessageProcess.CreateEmailsSendAsync, new PackageEntity { OperationArgs = new object[] { template, converter } }.CreateLines(targets));
+        }
+    }
+
+
+    public class CreateEmailsSendAsyncProcessAlgorithm : IProcessAlgorithm
+    {
+        public virtual void Execute(ExecutingProcess executingProcess)
+        {
+            PackageEntity package = (PackageEntity)executingProcess.Data;
+
+            var args = package.OperationArgs;
+            var template = args.GetArg<Lite<EmailTemplateEntity>>();
+
+            executingProcess.ForEachLine(package.Lines().Where(a => a.FinishTime == null), line =>
+            {
+                var emails = template.CreateEmailMessage(line.Target).ToList();
+                foreach (var email in emails)
+                    email.SendMailAsync();
+
+                line.Result = emails.Only()?.ToLite();
+                line.FinishTime = TimeZoneManager.Now;
+                line.Save();
+            });
+        }
     }
 
     public class SendEmailProcessAlgorithm : IProcessAlgorithm

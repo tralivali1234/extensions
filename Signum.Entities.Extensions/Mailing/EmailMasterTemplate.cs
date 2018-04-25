@@ -16,14 +16,13 @@ namespace Signum.Entities.Mailing
     [Serializable, EntityKind(EntityKind.Main, EntityData.Master)]
     public class EmailMasterTemplateEntity : Entity
     {
-        [NotNullable, SqlDbType(Size = 100), UniqueIndex]
+        [UniqueIndex]
         [StringLengthValidator(AllowNulls = false, Min = 3, Max = 100)]
         public string Name { get; set; }
 
-        [NotifyCollectionChanged, NotNullable]
-        public MList<EmailMasterTemplateMessageEntity> Messages { get; set; } = new MList<EmailMasterTemplateMessageEntity>();
+        [NotifyCollectionChanged, NotNullValidator]
+        public MList<EmailMasterTemplateMessageEmbedded> Messages { get; set; } = new MList<EmailMasterTemplateMessageEmbedded>();
 
-        [Ignore]
         public static readonly Regex MasterTemplateContentRegex = new Regex(@"\@\[content\]");
 
         static Expression<Func<EmailMasterTemplateEntity, string>> ToStringExpression = e => e.Name;
@@ -40,7 +39,7 @@ namespace Signum.Entities.Mailing
                 if (Messages == null || !Messages.Any())
                     return EmailTemplateMessage.ThereAreNoMessagesForTheTemplate.NiceToString();
 
-                if (Messages.GroupCount(m => m.CultureInfo).Any(c => c.Value > 1))
+                if (Messages.GroupBy(m => m.CultureInfo).Any(g => g.Count() > 1))
                     return EmailTemplateMessage.TheresMoreThanOneMessageForTheSameLanguage.NiceToString();
             }
 
@@ -52,18 +51,18 @@ namespace Signum.Entities.Mailing
             if (sender == Messages)
             {
                 if (args.OldItems != null)
-                    foreach (var item in args.OldItems.Cast<EmailMasterTemplateMessageEntity>())
+                    foreach (var item in args.OldItems.Cast<EmailMasterTemplateMessageEmbedded>())
                         item.MasterTemplate = null;
 
                 if (args.NewItems != null)
-                    foreach (var item in args.NewItems.Cast<EmailMasterTemplateMessageEntity>())
+                    foreach (var item in args.NewItems.Cast<EmailMasterTemplateMessageEmbedded>())
                         item.MasterTemplate = this;
             }
         }
 
-        protected override void PreSaving(ref bool graphModified)
+        protected override void PreSaving(PreSavingContext ctx)
         {
-            base.PreSaving(ref graphModified);
+            base.PreSaving(ctx);
 
             Messages.ForEach(e => e.MasterTemplate = this);
         }
@@ -77,28 +76,27 @@ namespace Signum.Entities.Mailing
     }
 
     [Serializable]
-    public class EmailMasterTemplateMessageEntity : EmbeddedEntity
+    public class EmailMasterTemplateMessageEmbedded : EmbeddedEntity
     {
-        private EmailMasterTemplateMessageEntity() { }
+        private EmailMasterTemplateMessageEmbedded() { }
 
-        public EmailMasterTemplateMessageEntity(CultureInfoEntity culture)
+        public EmailMasterTemplateMessageEmbedded(CultureInfoEntity culture)
         {
             this.CultureInfo = culture;
         }
 
         [Ignore]
         internal EmailMasterTemplateEntity masterTemplate;
+        [InTypeScript(false)]
         public EmailMasterTemplateEntity MasterTemplate
         {
             get { return masterTemplate; }
             set { masterTemplate = value; }
         }
 
-        [NotNullable]
         [NotNullValidator]
         public CultureInfoEntity CultureInfo { get; set; }
 
-        [NotNullable, SqlDbType(Size = int.MaxValue)]
         [StringLengthValidator(AllowNulls = false, MultiLine = true)]
         public string Text { get; set; }
 
@@ -111,7 +109,7 @@ namespace Signum.Entities.Mailing
         {
             if (pi.Name == nameof(Text) && !EmailMasterTemplateEntity.MasterTemplateContentRegex.IsMatch(Text))
             {
-                throw new ApplicationException(EmailTemplateMessage.TheTextMustContain0IndicatingReplacementPoint.NiceToString().FormatWith("@[content]"));
+                return EmailTemplateMessage.TheTextMustContain0IndicatingReplacementPoint.NiceToString().FormatWith("@[content]");
             }
 
             return base.PropertyValidation(pi);

@@ -51,7 +51,7 @@ namespace Signum.Engine.Cache
 
         internal string CreatePartialInnerJoin(IColumn column)
         {
-            return "INNER JOIN {0} {1} ON {1}.{2}=".FormatWith(table.Name.ToString(), currentAlias.Name.SqlEscape(), column.Name);
+            return "INNER JOIN {0} {1} ON {1}.{2}=".FormatWith(table.Name.ToString(), currentAlias, column.Name);
         }
 
         internal Type GetColumnType(IColumn column)
@@ -79,6 +79,15 @@ namespace Signum.Engine.Cache
             return Expression.Lambda<Func<object, PrimaryKey>>(primaryKey, originObject).Compile();
         }
 
+        internal Func<object, PrimaryKey?> GetPrimaryKeyNullableGetter(IColumn column)
+        {
+            var access = TupleReflection.TupleChainProperty(Expression.Convert(originObject, tupleType), table.Columns.Values.IndexOf(column));
+
+            var primaryKey = WrapPrimaryKey(access);
+
+            return Expression.Lambda<Func<object, PrimaryKey?>>(primaryKey, originObject).Compile();
+        }
+
         static ConstructorInfo ciPrimaryKey = ReflectionTools.GetConstuctorInfo(() => new PrimaryKey(1));
 
         internal static Expression NewPrimaryKey(Expression expression)
@@ -86,7 +95,7 @@ namespace Signum.Engine.Cache
             return Expression.New(ciPrimaryKey, Expression.Convert(expression, typeof(IComparable)));
         }
 
-
+        
         static GenericInvoker<Func<ICacheLogicController, AliasGenerator, string, string, CachedTableBase>> ciCachedTable =
          new GenericInvoker<Func<ICacheLogicController, AliasGenerator, string, string, CachedTableBase>>((controller, aliasGenerator, lastPartialJoin, remainingJoins) =>
              new CachedTable<Entity>(controller, aliasGenerator, lastPartialJoin, remainingJoins));
@@ -124,10 +133,8 @@ namespace Signum.Engine.Cache
                     return GetEntity(isLite, column, field.FieldType.CleanType());
                 }
 
-                if (field is FieldImplementedBy)
+                if (field is FieldImplementedBy ib)
                 {
-                    var ib = (FieldImplementedBy)field;
-
                     var call = ib.ImplementationColumns.Aggregate((Expression)nullRef, (acum, kvp) =>
                     {
                         IColumn column = (IColumn)kvp.Value;
@@ -142,10 +149,8 @@ namespace Signum.Engine.Cache
                     return call;
                 }
 
-                if (field is FieldImplementedByAll)
+                if (field is FieldImplementedByAll iba)
                 {
-                    var iba = (FieldImplementedByAll)field;
-
                     Expression id = GetTupleProperty(iba.Column);
                     Expression typeId = GetTupleProperty(iba.ColumnType);
 
@@ -167,10 +172,8 @@ namespace Signum.Engine.Cache
                 }
             }
 
-            if (field is FieldEmbedded)
+            if (field is FieldEmbedded fe)
             {
-                var fe = (FieldEmbedded)field;
-
                 Expression ctor = Expression.MemberInit(Expression.New(fe.FieldType),
                     fe.EmbeddedFields.Values.Select(f => Expression.Bind(f.FieldInfo, MaterializeField(f.Field))));
 
@@ -186,10 +189,8 @@ namespace Signum.Engine.Cache
             }
 
 
-            if (field is FieldMList)
+            if (field is FieldMList mListField)
             {
-                var mListField = (FieldMList)field;
-
                 var idColumn = table.Columns.Values.OfType<FieldPrimaryKey>().First();
 
                 string lastPartialJoin = CreatePartialInnerJoin(idColumn);

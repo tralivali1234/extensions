@@ -17,6 +17,7 @@ using Signum.Entities.Migrations;
 using Signum.Utilities;
 using Signum.Utilities.DataStructures;
 using Signum.Engine.SchemaInfoTables;
+using Signum.Engine.Basics;
 
 namespace Signum.Engine.Migrations
 {
@@ -26,37 +27,42 @@ namespace Signum.Engine.Migrations
         {
             if (sb.NotDefined(MethodInfo.GetCurrentMethod()))
             {
-                sb.Include<SqlMigrationEntity>();
-
-                dqm.RegisterQuery(typeof(SqlMigrationEntity), () =>
-                    from e in Database.Query<SqlMigrationEntity>()
-                    select new
+                sb.Include<SqlMigrationEntity>()
+                    .WithQuery(dqm, () => e => new
                     {
                         Entity = e,
                         e.Id,
                         e.VersionNumber,
                     });
 
-
-                sb.Include<CSharpMigrationEntity>();
-
-                dqm.RegisterQuery(typeof(CSharpMigrationEntity), () =>
-                    from e in Database.Query<CSharpMigrationEntity>()
-                    select new
+                sb.Include<CSharpMigrationEntity>()
+                    .WithQuery(dqm, () => e => new
                     {
                         Entity = e,
                         e.Id,
                         e.UniqueName,
                         e.ExecutionDate,
                     });
+
+                sb.Include<LoadMethodLogEntity>()
+                    .WithQuery(dqm, () => e => new
+                    {
+                        Entity = e,
+                        e.Id,
+                        e.Start,
+                        e.Duration,
+                        e.ClassName,
+                        e.MethodName,
+                        e.Description,
+                    });
             }
         }
 
-        internal static void EnsureMigrationTable<T>() where T : Entity
+        public static void EnsureMigrationTable<T>() where T : Entity
         {
             using (Transaction tr = new Transaction())
             {
-                if (Administrator.ExistTable<T>())
+                if (Administrator.ExistsTable<T>())
                     return;
 
                 var table = Schema.Current.Table<T>();
@@ -76,11 +82,61 @@ namespace Signum.Engine.Migrations
                 tr.Commit();
             }
         }
+
+        public static Exception ExecuteLoadProcess(Action action, string description)
+        {
+            string showDescription = description ?? action.Method.Name.SpacePascal(true);
+            Console.WriteLine("------- Executing {0} ".FormatWith(showDescription).PadRight(Console.WindowWidth - 2, '-'));
+
+            var log = !Schema.Current.Tables.ContainsKey(typeof(LoadMethodLogEntity)) ? null : new LoadMethodLogEntity
+            {
+                Start = TimeZoneManager.Now,
+                ClassName = action.Method.DeclaringType.FullName,
+                MethodName = action.Method.Name,
+                Description = description,
+            };
+
+            try
+            {
+                action();
+                if (log != null)
+                {
+                    log.End = TimeZoneManager.Now;
+                    log.Save();
+                }
+                Console.WriteLine("------- Executed {0} (took {1})".FormatWith(showDescription, (log.End.Value - log.Start).NiceToString()).PadRight(Console.WindowWidth - 2, '-'));
+
+                return null;
+            }
+            catch (Exception e)
+            {                
+                Console.WriteLine();
+
+                SafeConsole.WriteColor(ConsoleColor.Red, e.GetType() + ": ");
+                SafeConsole.WriteLineColor(ConsoleColor.DarkRed, e.Message);
+                SafeConsole.WriteSameLineColor(ConsoleColor.DarkRed, e.StackTrace);
+                if (log != null)
+                {
+                    var exLog = e.LogException();
+                    log.Exception = exLog.ToLite();
+                    log.End = TimeZoneManager.Now;
+                    log.Save();
+                }
+
+                return e;
+            }
+        }
     }
 
+   
     [Serializable]
     public class MigrationException : Exception
     {
         public MigrationException() { }
+        public MigrationException(string message) : base(message) { }
+        public MigrationException(string message, Exception inner) : base(message, inner) { }
+        protected MigrationException(
+          System.Runtime.Serialization.SerializationInfo info,
+          System.Runtime.Serialization.StreamingContext context) : base(info, context) { }
     }
 }

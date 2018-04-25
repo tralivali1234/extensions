@@ -8,6 +8,7 @@ using System.Text.RegularExpressions;
 using Signum.Entities.Chart;
 using Signum.Entities.Omnibox;
 using Signum.Entities.DynamicQuery;
+using Newtonsoft.Json;
 
 namespace Signum.Entities.Chart
 {
@@ -44,11 +45,13 @@ namespace Signum.Entities.Chart
 
                 foreach (var match in OmniboxUtils.Matches(OmniboxParser.Manager.GetQueries(), OmniboxParser.Manager.AllowedQuery, pattern, isPascalCase).OrderBy(ma => ma.Distance))
                 {
-                    var queryName = match.Value;
-                    if (OmniboxParser.Manager.AllowedQuery(queryName))
+                    yield return new ChartOmniboxResult
                     {
-                        yield return new ChartOmniboxResult { Distance = keyMatch.Distance + match.Distance, KeywordMatch = keyMatch, QueryName = queryName, QueryNameMatch = match };
-                    }
+                        Distance = keyMatch.Distance + match.Distance,
+                        KeywordMatch = keyMatch,
+                        QueryName = match.Value,
+                        QueryNameMatch = match
+                    };
                 }
             }
         }
@@ -61,7 +64,7 @@ namespace Signum.Entities.Chart
                 new HelpOmniboxResult 
                 { 
                     Text =  ChartMessage.ChartToken.NiceToString() + " " + OmniboxMessage.Omnibox_Query.NiceToString(), 
-                    OmniboxResultType = resultType 
+                    ReferencedType = resultType 
                 }
             };
         }
@@ -71,6 +74,7 @@ namespace Signum.Entities.Chart
     {
         public OmniboxMatch KeywordMatch { get; set; }
 
+        [JsonConverter(typeof(QueryNameJsonConverter))]
         public object QueryName { get; set; }
         public OmniboxMatch QueryNameMatch { get; set; }
 

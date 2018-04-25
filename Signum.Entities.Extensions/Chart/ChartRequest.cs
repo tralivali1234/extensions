@@ -17,33 +17,38 @@ namespace Signum.Entities.Chart
 {
     public interface IChartBase
     {
-        ChartScriptEntity ChartScript { get; }
+        ChartScriptEntity ChartScript { get; set; }
 
         bool GroupResults { get; set; }
 
-        MList<ChartColumnEntity> Columns { get; }
-        MList<ChartParameterEntity> Parameters { get; }
+        MList<ChartColumnEmbedded> Columns { get; }
+        MList<ChartParameterEmbedded> Parameters { get; }
 
         void InvalidateResults(bool needNewQuery);
 
         bool Invalidator { get; }
 
-        void FixParameters(ChartColumnEntity chartColumnEntity);
+        void FixParameters(ChartColumnEmbedded chartColumnEntity);
     }
 
-    [Serializable]
+    [Serializable, InTypeScript(Undefined = false)]
     public class ChartRequest : ModelEntity, IChartBase
     {
+        private ChartRequest()
+        {
+        }
+
         public ChartRequest(object queryName)
         {
             this.queryName = queryName;
         }
-
+        
         object queryName;
-        [NotNullValidator]
+        [NotNullValidator, InTypeScript(false)]
         public object QueryName
         {
             get { return queryName; }
+            set { queryName = value; }
         }
 
         ChartScriptEntity chartScript;
@@ -55,7 +60,7 @@ namespace Signum.Entities.Chart
             {
                 if (Set(ref chartScript, value))
                 {
-                    var newQuery = chartScript.SyncronizeColumns(this);
+                    var newQuery = chartScript.SynchronizeColumns(this);
                     NotifyAllColumns();
                     InvalidateResults(newQuery);
                 }
@@ -85,12 +90,11 @@ namespace Signum.Entities.Chart
             }
         }
 
-        [NotifyCollectionChanged, ValidateChildProperty, NotNullable]
-        public MList<ChartColumnEntity> Columns { get; set; } = new MList<ChartColumnEntity>();
+        [NotifyCollectionChanged, NotifyChildProperty, NotNullValidator]
+        public MList<ChartColumnEmbedded> Columns { get; set; } = new MList<ChartColumnEmbedded>();
 
-        [NotNullable]
         [NotNullValidator, NoRepeatValidator]
-        public MList<ChartParameterEntity> Parameters { get; set; } = new MList<ChartParameterEntity>();
+        public MList<ChartParameterEmbedded> Parameters { get; set; } = new MList<ChartParameterEmbedded>();
 
         void NotifyAllColumns()
         {
@@ -108,8 +112,7 @@ namespace Signum.Entities.Chart
             if (needNewQuery)
                 this.NeedNewQuery = true;
 
-            if (ChartRequestChanged != null)
-                ChartRequestChanged();
+            ChartRequestChanged?.Invoke();
 
             Notify(() => Invalidator);
         }
@@ -126,8 +129,10 @@ namespace Signum.Entities.Chart
         }
 
 
+        [InTypeScript(false)]
         public List<Filter> Filters { get; set; } = new List<Filter>();
 
+        [InTypeScript(false)]
         public List<Order> Orders { get; set; } = new List<Order>();
 
         public List<QueryToken> AllTokens()
@@ -143,6 +148,7 @@ namespace Signum.Entities.Chart
             return allTokens;
         }
 
+        [InTypeScript(false)]
         public List<CollectionElementToken> Multiplications
         {
             get { return CollectionElementToken.GetElements(AllTokens().ToHashSet()); }
@@ -163,7 +169,7 @@ namespace Signum.Entities.Chart
         }
 
 
-        public void FixParameters(ChartColumnEntity chartColumn)
+        public void FixParameters(ChartColumnEmbedded chartColumn)
         {
             ChartUtils.FixParameters(this, chartColumn);
         }

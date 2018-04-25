@@ -15,15 +15,20 @@ using Signum.Entities.Translation;
 using System.Reflection;
 using Signum.Entities.UserAssets;
 using Signum.Utilities.ExpressionTrees;
+using Signum.Entities;
+using Signum.Entities.Templating;
 
 namespace Signum.Entities.Mailing
 {
     [Serializable, EntityKind(EntityKind.Main, EntityData.Master)]
     public class EmailTemplateEntity : Entity
     {
-        public EmailTemplateEntity() { }
+        public EmailTemplateEntity()
+        {
+            RebindEvents();
+        }
 
-        public EmailTemplateEntity(object queryName)
+        public EmailTemplateEntity(object queryName) : this()
         {
             this.queryName = queryName;
         }
@@ -31,7 +36,7 @@ namespace Signum.Entities.Mailing
         [Ignore]
         internal object queryName;
 
-        [NotNullable, SqlDbType(Size = 100), UniqueIndex]
+        [UniqueIndex]
         [StringLengthValidator(AllowNulls = false, Min = 3, Max = 100)]
         public string Name { get; set; }
 
@@ -39,7 +44,6 @@ namespace Signum.Entities.Mailing
 
         public bool DisableAuthorization { get; set; }
 
-        [NotNullable]
         [NotNullValidator]
         public QueryEntity Query { get; set; }
 
@@ -47,66 +51,28 @@ namespace Signum.Entities.Mailing
 
         public bool SendDifferentMessages { get; set; }
 
-        public EmailTemplateContactEntity From { get; set; }
+        public EmailTemplateContactEmbedded From { get; set; }
 
-        [NotNullable]
         [NotNullValidator, NoRepeatValidator]
         public MList<EmailTemplateRecipientEntity> Recipients { get; set; } = new MList<EmailTemplateRecipientEntity>();
 
+        [PreserveOrder]
+        [NotNullValidator, NoRepeatValidator, ImplementedBy(typeof(ImageAttachmentEntity)), NotifyChildProperty]
+        public MList<IAttachmentGeneratorEntity> Attachments { get; set; } = new MList<IAttachmentGeneratorEntity>();
 
         public Lite<EmailMasterTemplateEntity> MasterTemplate { get; set; }
 
         public bool IsBodyHtml { get; set; } = true;
 
-        [NotifyCollectionChanged]
-        public MList<EmailTemplateMessageEntity> Messages { get; set; } = new MList<EmailTemplateMessageEntity>();
+        [NotNullValidator, NotifyCollectionChanged, NotifyChildProperty]
+        public MList<EmailTemplateMessageEmbedded> Messages { get; set; } = new MList<EmailTemplateMessageEmbedded>();
 
-        public bool Active { get; set; }
-
-        [MinutesPrecissionValidator]
-        public DateTime? StartDate { get; set; }
-
-        [MinutesPrecissionValidator]
-        public DateTime? EndDate { get; set; }
-
-        static Expression<Func<EmailTemplateEntity, bool>> IsActiveNowExpression =
-            (mt) => mt.Active && TimeZoneManager.Now.IsInInterval(mt.StartDate, mt.EndDate);
-        [ExpressionField]
-        public bool IsActiveNow()
-        {
-            return IsActiveNowExpression.Evaluate(this);
-        }
-
-        protected override void ChildCollectionChanged(object sender, NotifyCollectionChangedEventArgs args)
-        {
-            if (sender == Messages)
-            {
-                if (args.OldItems != null)
-                    foreach (var item in args.OldItems.Cast<EmailTemplateMessageEntity>())
-                        item.Template = null;
-
-                if (args.NewItems != null)
-                    foreach (var item in args.NewItems.Cast<EmailTemplateMessageEntity>())
-                        item.Template = this;
-            }
-        }
-
-        protected override void PreSaving(ref bool graphModified)
-        {
-            base.PreSaving(ref graphModified);
-
-            Messages.ForEach(e => e.Template = this);
-        }
-
+        [NotifyChildProperty]
+        public TemplateApplicableEval Applicable { get; set; }
+        
         protected override string PropertyValidation(System.Reflection.PropertyInfo pi)
         {
-            if (pi.Name == nameof(StartDate) || pi.Name == nameof(EndDate))
-            {
-                if (EndDate != null && EndDate < StartDate)
-                    return EmailTemplateMessage.EndDateMustBeHigherThanStartDate.NiceToString();
-            }
-
-            if (pi.Name == nameof(Messages) && Active)
+            if (pi.Name == nameof(Messages))
             {
                 if (Messages == null || !Messages.Any())
                     return EmailTemplateMessage.ThereAreNoMessagesForTheTemplate.NiceToString();
@@ -134,12 +100,27 @@ namespace Signum.Entities.Mailing
             if (From != null && From.Token != null)
                 From.Token.ParseData(this, queryDescription, SubTokensOptions.CanElement);
         }
+
+        public bool IsApplicable(Entity entity)
+        {
+            if (Applicable == null)
+                return true;
+
+            try
+            {
+                return Applicable.Algorithm.ApplicableUntyped(entity);
+            }
+            catch (Exception e)
+            {
+                throw new ApplicationException($"Error evaluating Applicable for EmailTemplate '{Name}' with entity '{entity}': " + e.Message, e);
+            }
+        }
     }
 
     [Serializable]
-    public class EmailTemplateContactEntity : EmbeddedEntity
+    public class EmailTemplateContactEmbedded : EmbeddedEntity
     {
-        public QueryTokenEntity Token { get; set; }
+        public QueryTokenEmbedded Token { get; set; }
 
         public string EmailAddress { get; set; }
 
@@ -169,7 +150,7 @@ namespace Signum.Entities.Mailing
     }
 
     [Serializable]
-    public class EmailTemplateRecipientEntity : EmailTemplateContactEntity
+    public class EmailTemplateRecipientEntity : EmailTemplateContactEmbedded
     {
         public EmailRecipientKind Kind { get; set; }
 
@@ -180,28 +161,19 @@ namespace Signum.Entities.Mailing
     }
 
     [Serializable]
-    public class EmailTemplateMessageEntity : EmbeddedEntity
+    public class EmailTemplateMessageEmbedded : EmbeddedEntity
     {
-        private EmailTemplateMessageEntity() { }
+        private EmailTemplateMessageEmbedded() { }
 
-        public EmailTemplateMessageEntity(CultureInfoEntity culture)
+        public EmailTemplateMessageEmbedded(CultureInfoEntity culture)
         {
             this.CultureInfo = culture;
         }
 
-        [Ignore]
-        internal EmailTemplateEntity template;
-        public EmailTemplateEntity Template
-        {
-            get { return template; }
-            set { template = value; }
-        }
-
-        [NotNullable]
         [NotNullValidator]
         public CultureInfoEntity CultureInfo { get; set; }
 
-        [NotNullable, SqlDbType(Size = int.MaxValue)]
+        [SqlDbType(Size = int.MaxValue)]
         string text;
         [StringLengthValidator(AllowNulls = false, MultiLine=true)]
         public string Text
@@ -217,7 +189,6 @@ namespace Signum.Entities.Mailing
         [Ignore]
         internal object TextParsedNode;
 
-        [SqlDbType(Size = 200)]
         string subject;
         [StringLengthValidator(AllowNulls = false, Min = 3, Max = 200)]
         public string Subject
@@ -239,14 +210,17 @@ namespace Signum.Entities.Mailing
         }
     }
 
+    public interface IAttachmentGeneratorEntity : IEntity
+    {
+    }
+
     [AutoInit]
     public static class EmailTemplateOperation
     {
         public static ConstructSymbol<EmailTemplateEntity>.From<SystemEmailEntity> CreateEmailTemplateFromSystemEmail;
         public static ConstructSymbol<EmailTemplateEntity>.Simple Create;
         public static ExecuteSymbol<EmailTemplateEntity> Save;
-        public static ExecuteSymbol<EmailTemplateEntity> Enable;
-        public static ExecuteSymbol<EmailTemplateEntity> Disable;
+        public static DeleteSymbol<EmailTemplateEntity> Delete;
     }
 
     public enum EmailTemplateMessage
@@ -261,17 +235,15 @@ namespace Signum.Entities.Mailing
         TheresMoreThanOneMessageForTheSameLanguage,
         [Description("The text must contain {0} indicating replacement point")]
         TheTextMustContain0IndicatingReplacementPoint,
-        [Description("The template is already active")]
-        TheTemplateIsAlreadyActive,
-        [Description("The template is already inactive")]
-        TheTemplateIsAlreadyInactive,
-        [Description("SystemEmail should be set to access model {0}")]
-        SystemEmailShouldBeSetToAccessModel0,
+        [Description("Impossible to access {0} because the template has no {1}")]
+        ImpossibleToAccess0BecauseTheTemplateHAsNo1,
         NewCulture,
         TokenOrEmailAddressMustBeSet,
         TokenAndEmailAddressCanNotBeSetAtTheSameTime,
         [Description("Token must be a {0}")]
         TokenMustBeA0,
+        ShowPreview,
+        HidePreview
     }
 
     public enum EmailTemplateViewMessage
@@ -282,5 +254,13 @@ namespace Signum.Entities.Mailing
         Insert,
         [Description("Language")]
         Language
+    }
+
+    [InTypeScript(true)]
+    public enum EmailTemplateVisibleOn
+    {
+        Single = 1,
+        Multiple = 2,
+        Query = 4
     }
 }

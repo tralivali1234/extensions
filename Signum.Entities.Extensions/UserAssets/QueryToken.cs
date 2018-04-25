@@ -8,14 +8,14 @@ using Signum.Utilities;
 
 namespace Signum.Entities.UserAssets
 {
-    [Serializable]
-    public sealed class QueryTokenEntity : EmbeddedEntity, IEquatable<QueryTokenEntity>
+    [Serializable, InTypeScript(Undefined = false)]
+    public sealed class QueryTokenEmbedded : EmbeddedEntity, IEquatable<QueryTokenEmbedded>
     {
-        private QueryTokenEntity()
+        private QueryTokenEmbedded()
         {
         }
 
-        public QueryTokenEntity(QueryToken token)
+        public QueryTokenEmbedded(QueryToken token)
         {
             if (token == null)
                 throw new ArgumentNullException("token");
@@ -23,21 +23,16 @@ namespace Signum.Entities.UserAssets
             this.token = token;
         }
 
-        public QueryTokenEntity(string tokenString)
+        public QueryTokenEmbedded(string tokenString)
         {
             if (string.IsNullOrEmpty(tokenString))
                 throw new ArgumentNullException("tokenString");
 
-            this.tokenString = tokenString;
+            this.TokenString = tokenString;
         }
-
-        [NotNullable]
-        string tokenString;
-        [StringLengthValidator(AllowNulls = false, Min = 1)]
-        public string TokenString
-        {
-            get { return tokenString; }
-        }
+        
+        [StringLengthValidator(AllowNulls = false, Min = 1, Max = 200), InTypeScript(Undefined = false, Null = false)]
+        public string TokenString { get; set; }
 
         [Ignore]
         QueryToken token;
@@ -67,20 +62,21 @@ namespace Signum.Entities.UserAssets
             get { return parseException; }
         }
 
-        protected override void PreSaving(ref bool graphModified)
+        protected override void PreSaving(PreSavingContext ctx)
         {
-            tokenString = token == null ? null : token.FullKey();
+            if (token != null)
+                TokenString = token.FullKey();
         }
 
-        public void ParseData(Entity context, QueryDescription description, SubTokensOptions options)
+        public void ParseData(ModifiableEntity context, QueryDescription description, SubTokensOptions options)
         {
             try
             {
-                token = QueryUtils.Parse(tokenString, description, options);
+                token = QueryUtils.Parse(TokenString, description, options);
             }
             catch (Exception e)
             {
-                parseException = new FormatException("{0} {1}: {2}\r\n{3}".FormatWith(context.GetType().Name, context.IdOrNull, context, e.Message), e);
+                parseException = new FormatException("{0} {1}: {2}\r\n{3}".FormatWith(context.GetType().Name, (context as Entity)?.IdOrNull, context, e.Message), e);
             }
         }
 
@@ -99,28 +95,34 @@ namespace Signum.Entities.UserAssets
             if (token != null)
                 return token.FullKey();
 
-            return tokenString;
+            return TokenString;
         }
 
-        public bool Equals(QueryTokenEntity other)
+        public bool Equals(QueryTokenEmbedded other)
         {
             return this.GetTokenString() == other.GetTokenString();
         }
 
         public string GetTokenString()
         {
-            return this.token != null ? this.token.FullKey() : this.tokenString;
+            return this.token != null ? this.token.FullKey() : this.TokenString;
         }
-        
+
         public override bool Equals(object obj)
         {
-            return obj is QueryTokenEntity && this.Equals((QueryTokenEntity)obj);
+            return obj is QueryTokenEmbedded && this.Equals((QueryTokenEmbedded)obj);
         }
 
         public override int GetHashCode()
         {
-            return this.Token.GetHashCode();
+            return this.GetTokenString().GetHashCode();
         }
+
+        public QueryTokenEmbedded Clone() => new QueryTokenEmbedded
+        {
+            TokenString = TokenString,
+            token = token
+        };
     }
 
 }

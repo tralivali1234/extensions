@@ -1,0 +1,20 @@
+﻿
+
+import { FilterOptionParsed, OrderOptionParsed, FilterRequest, OrderRequest } from '../../../Framework/Signum.React/Scripts/FindOptions' 
+
+//Partial
+export interface ChartRequest {
+    queryKey: string;
+
+	filterOptions: FilterOptionParsed[];
+    orderOptions: OrderOptionParsed[];
+
+    filters: FilterRequest[];
+    orders: OrderRequest[];
+}
+
+export interface ChartScriptParameterEmbedded {
+    enumValues: { name: string, typeFilter : ChartColumnType }[];
+}
+
+export type IChartBase = ChartRequest | UserChartEntity;

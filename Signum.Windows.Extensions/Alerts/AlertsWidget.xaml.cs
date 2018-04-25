@@ -59,9 +59,8 @@ namespace Signum.Windows.Alerts
 
         private void Alert_MouseDown(object sender, RoutedEventArgs e)
         {
-            if (e.OriginalSource is Button) //Not to capture the mouseDown of the scrollbar buttons
+            if (e.OriginalSource is Button b) //Not to capture the mouseDown of the scrollbar buttons
             {
-                Button b = (Button)e.OriginalSource;
                 Lite<AlertEntity> alert = (Lite<AlertEntity>)b.Tag;
                 ViewAlert(Server.RetrieveAndForget(alert));
             }
@@ -105,8 +104,10 @@ namespace Signum.Windows.Alerts
         {
             var func = CustomFilter.TryGetValue(DataContext.GetType());
 
-            DynamicQueryServer.QueryGroupBatch(new QueryGroupOptions(typeof(AlertEntity))
+            DynamicQueryServer.QueryBatch(new QueryOptions
             {
+                QueryName = typeof(AlertEntity),
+                GroupResults = true,
                 FilterOptions = new List<FilterOption>
                 {
                      func != null ?  func((Entity)DataContext) : new FilterOption("Target", DataContext) { Frozen = true },
@@ -134,8 +135,7 @@ namespace Signum.Windows.Alerts
 
                     tbAlerts.FontWeight = FontWeights.Bold;
 
-                    if (ForceShow != null)
-                        ForceShow();
+                    ForceShow?.Invoke();
                 }
             }, () => { }); 
         }

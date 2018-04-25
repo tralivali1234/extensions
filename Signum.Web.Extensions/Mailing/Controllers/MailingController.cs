@@ -50,9 +50,24 @@ namespace Signum.Web.Mailing
             var entity = Lite.Parse(Request["keys"]).Retrieve();
 
             var emailMessage = this.ExtractEntity<EmailTemplateEntity>()
-                .ConstructFrom(EmailMessageOperation.CreateMailFromTemplate, entity);
+                .ConstructFrom(EmailMessageOperation.CreateEmailFromTemplate, entity);
 
             return this.DefaultConstructResult(emailMessage);
+        }
+
+        [HttpPost]
+        public JsonResult GetEmailTemplateEntityImplementations()
+        {
+            var template = Lite.Parse<EmailTemplateEntity>(Request["template"]);
+
+            var implementations = SendEmailTaskLogic.GetImplementations(template.InDB(a => a.Query));
+
+            return new JsonResult
+            {
+                Data = implementations == null ?
+                new JsExtensions.JsTypeInfo[0] :
+                implementations.Value.ToJsTypeInfos(isSearch: false, prefix: "")
+            };
         }
     }
 }

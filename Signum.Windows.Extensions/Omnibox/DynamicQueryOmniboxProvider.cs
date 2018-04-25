@@ -37,7 +37,7 @@ namespace Signum.Windows.Omnibox
                     }
 
                     object value = f.Value;
-                    if (value == DynamicQueryOmniboxResultGenerator.UnknownValue)
+                    if (value as string == DynamicQueryOmniboxResultGenerator.UnknownValue)
                     {
                         MessageBox.Show(window, "Unknown value for {0}".FormatWith(f.QueryToken.ToString()));
                         value = null;
@@ -98,10 +98,10 @@ namespace Signum.Windows.Omnibox
                 {
                     lines.Add(new Bold(new Run(FilterValueConverter.ToStringOperation(item.Operation.Value))));
 
-                    if (item.Value == DynamicQueryOmniboxResultGenerator.UnknownValue)
+                    if ((item.Value as string) == DynamicQueryOmniboxResultGenerator.UnknownValue)
                         lines.Add(new Run(OmniboxMessage.Unknown.NiceToString()) { Foreground = Brushes.Red });
-                    else if (item.ValuePack != null)
-                        lines.AddMatch(item.ValuePack);
+                    else if (item.ValueMatch != null)
+                        lines.AddMatch(item.ValueMatch);
                     else if (item.Syntax != null && item.Syntax.Completion == FilterSyntaxCompletion.Complete)
                         lines.Add(new Bold(new Run(DynamicQueryOmniboxResultGenerator.ToStringValue(item.Value))));
                     else
@@ -118,7 +118,7 @@ namespace Signum.Windows.Omnibox
 
         public override string GetName(DynamicQueryOmniboxResult result)
         {
-            return "Q:" + QueryUtils.GetQueryUniqueKey(result.QueryName);
+            return "Q:" + QueryUtils.GetKey(result.QueryName);
         }
     }
 }

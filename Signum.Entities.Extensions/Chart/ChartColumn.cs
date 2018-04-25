@@ -16,17 +16,18 @@ using Signum.Entities.UserAssets;
 namespace Signum.Entities.Chart
 {
     [Serializable]
-    public class ChartColumnEntity : EmbeddedEntity
+    public class ChartColumnEmbedded : EmbeddedEntity
     {
         [Ignore]
-        ChartScriptColumnEntity scriptColumn;
-        public ChartScriptColumnEntity ScriptColumn
+        ChartScriptColumnEmbedded scriptColumn;
+        [HiddenProperty]
+        public ChartScriptColumnEmbedded ScriptColumn
         {
             get { return scriptColumn; }
             set { scriptColumn = value; Notify(() => ScriptColumn); } 
         }
         
-        public ChartColumnEntity()
+        public ChartColumnEmbedded()
         {
         }
 
@@ -34,7 +35,7 @@ namespace Signum.Entities.Chart
         {
             NotifyChange(true);
 
-            this.parentChart.FixParameters(this);
+            this.parentChart?.FixParameters(this);
 
             if (token != null)
             {
@@ -42,8 +43,8 @@ namespace Signum.Entities.Chart
             }
         }
 
-        QueryTokenEntity token;
-        public QueryTokenEntity Token
+        QueryTokenEmbedded token;
+        public QueryTokenEmbedded Token
         {
             get { return token; }
             set
@@ -56,10 +57,10 @@ namespace Signum.Entities.Chart
         string displayName;
         public string DisplayName
         {
-            get { return displayName ?? Token?.Let(t => t.Token?.NiceName()); }
+            get { return displayName ?? Token?.Let(t => t.TryToken?.NiceName()); }
             set
             {
-                var name = value == Token?.Let(t => t.Token?.NiceName()) ? null : value;
+                var name = value == Token?.Let(t => t.TryToken?.NiceName()) ? null : value;
                 Set(ref displayName, name);
             }
         }
@@ -91,7 +92,7 @@ namespace Signum.Entities.Chart
 
         public void NotifyChange(bool needNewQuery)
         {
-            parentChart.InvalidateResults(needNewQuery);
+            parentChart?.InvalidateResults(needNewQuery);
         }
 
         [field: NonSerialized, Ignore]
@@ -106,8 +107,7 @@ namespace Signum.Entities.Chart
             Notify(() => GroupByVisible);
             Notify(() => PropertyLabel);
 
-            if (Notified != null)
-                Notified();
+            Notified?.Invoke();
         }
 
         protected override string PropertyValidation(PropertyInfo pi)
@@ -150,12 +150,12 @@ namespace Signum.Entities.Chart
             return DisplayName + (unit.HasText() ? " ({0})".FormatWith(unit) : null);
         }
 
-        protected override void PreSaving(ref bool graphModified)
+        protected override void PreSaving(PreSavingContext ctx)
         {
             DisplayName = displayName;
         }
 
-        public void ParseData(Entity context, QueryDescription description, SubTokensOptions options)
+        public void ParseData(ModifiableEntity context, QueryDescription description, SubTokensOptions options)
         {
             if (token != null)
                 token.ParseData(context, description, options & ~SubTokensOptions.CanAnyAll);
@@ -175,7 +175,7 @@ namespace Signum.Entities.Chart
 
         internal void FromXml(XElement element, IFromXmlContext ctx)
         {
-            Token = element.Attribute("Token")?.Let(a => new QueryTokenEntity(a.Value));
+            Token = element.Attribute("Token")?.Let(a => new QueryTokenEmbedded(a.Value));
             DisplayName = element.Attribute("DisplayName")?.Value;
         }
 

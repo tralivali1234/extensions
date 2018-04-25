@@ -14,7 +14,13 @@ namespace Signum.Entities.Mailing
     [Serializable, EntityKind(EntityKind.Shared, EntityData.Master)]
     public class SmtpConfigurationEntity : Entity
     {
-        [NotNullable, SqlDbType(Size = 100), UniqueIndex]
+        static SmtpConfigurationEntity()
+        {
+            DescriptionManager.ExternalEnums.Add(typeof(SmtpDeliveryFormat), m => m.Name);
+            DescriptionManager.ExternalEnums.Add(typeof(SmtpDeliveryMethod), m => m.Name);
+        }
+
+        [UniqueIndex]
         [StringLengthValidator(AllowNulls = false, Min = 1, Max = 100)]
         public string Name { get; set; }
 
@@ -22,15 +28,14 @@ namespace Signum.Entities.Mailing
 
         public SmtpDeliveryMethod DeliveryMethod { get; set; }
 
-        public SmtpNetworkDeliveryEntity Network { get; set; }
+        public SmtpNetworkDeliveryEmbedded Network { get; set; }
 
-        [SqlDbType(Size = 300)]
         [StringLengthValidator(AllowNulls = true, Min = 3, Max = 300), FileNameValidator]
         public string PickupDirectoryLocation { get; set; }
 
-        public EmailAddressEntity DefaultFrom { get; set; }
+        public EmailAddressEmbedded DefaultFrom { get; set; }
 
-        [NotNullable]
+        [NotNullValidator]
         [NoRepeatValidator]
         public MList<EmailRecipientEntity> AdditionalRecipients { get; set; } = new MList<EmailRecipientEntity>();
 
@@ -63,19 +68,16 @@ namespace Signum.Entities.Mailing
     }
 
     [Serializable]
-    public class SmtpNetworkDeliveryEntity : EmbeddedEntity
+    public class SmtpNetworkDeliveryEmbedded : EmbeddedEntity
     {
-        [NotNullable, SqlDbType(Size = 100)]
         [StringLengthValidator(AllowNulls = false, Min = 3, Max = 100)]
         public string Host { get; set; }
 
         public int Port { get; set; } = 25;
 
-        [SqlDbType(Size = 100)]
         [StringLengthValidator(AllowNulls = true, Max = 100)]
         public string Username { get; set; }
 
-        [SqlDbType(Size = 100)]
         [StringLengthValidator(AllowNulls = true, Max = 100)]
         public string Password { get; set; }
 
@@ -83,20 +85,19 @@ namespace Signum.Entities.Mailing
 
         public bool EnableSSL { get; set; }
 
-        [NotNullable]
-        public MList<ClientCertificationFileEntity> ClientCertificationFiles { get; set; } = new MList<ClientCertificationFileEntity>();
+        [NotNullValidator]
+        public MList<ClientCertificationFileEmbedded> ClientCertificationFiles { get; set; } = new MList<ClientCertificationFileEmbedded>();
     }
 
     [Serializable]
-    public class ClientCertificationFileEntity : EmbeddedEntity
+    public class ClientCertificationFileEmbedded : EmbeddedEntity
     {
-        [NotNullable, SqlDbType(Size = 300)]
         [StringLengthValidator(AllowNulls = false, Min = 2, Max = 300),]
         public string FullFilePath { get; set; }
 
         public CertFileType CertFileType { get; set; }
 
-        static Expression<Func<ClientCertificationFileEntity, string>> ToStringExpression = e => e.FullFilePath;
+        static Expression<Func<ClientCertificationFileEmbedded, string>> ToStringExpression = e => e.FullFilePath;
         [ExpressionField]
         public override string ToString()
         {

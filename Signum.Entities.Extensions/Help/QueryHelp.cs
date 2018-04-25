@@ -13,21 +13,18 @@ namespace Signum.Entities.Help
     [Serializable, EntityKind(EntityKind.SharedPart, EntityData.Master)]
     public class QueryHelpEntity : Entity
     {
-        [NotNullable]
         [NotNullValidator]
         public QueryEntity Query { get; set; }
 
-        [NotNullable]
         [NotNullValidator]
         public CultureInfoEntity Culture { get; set; }
 
-        [SqlDbType(Size = int.MaxValue)]
         [StringLengthValidator(AllowNulls = true, Min = 3, MultiLine = true)]
         public string Description { get; set; }
 
-        [NotNullable, PreserveOrder]
+        [PreserveOrder]
         [NotNullValidator, NoRepeatValidator]
-        public MList<QueryColumnHelpEntity> Columns { get; set; } = new MList<QueryColumnHelpEntity>();
+        public MList<QueryColumnHelpEmbedded> Columns { get; set; } = new MList<QueryColumnHelpEmbedded>();
 
         public bool IsEmpty
         {
@@ -51,13 +48,11 @@ namespace Signum.Entities.Help
     }
 
     [Serializable]
-    public class QueryColumnHelpEntity : EmbeddedEntity
+    public class QueryColumnHelpEmbedded : EmbeddedEntity
     {
-        [NotNullable, SqlDbType(Size = 100)]
         [StringLengthValidator(AllowNulls = false, Min = 3, Max = 100)]
         public string ColumnName { get; set; }
 
-        [SqlDbType(Size = int.MaxValue)]
         [StringLengthValidator(AllowNulls = true, Min = 3, MultiLine = true)]
         public string Description { get; set; }
 

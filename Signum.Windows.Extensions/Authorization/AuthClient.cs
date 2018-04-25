@@ -27,8 +27,7 @@ namespace Signum.Windows.Authorization
 
         public static void UpdateCache()
         {
-            if (UpdateCacheEvent != null)
-                UpdateCacheEvent();
+            UpdateCacheEvent?.Invoke();
         }
 
         public static void Start(bool types, bool property, bool queries, bool permissions, bool operations, bool defaultPasswordExpiresLogic)
@@ -71,10 +70,10 @@ namespace Signum.Windows.Authorization
                     () => BasicPermission.AdminRules.IsAuthorized(),
                     win =>
                     {
-                        SaveFileDialog sfc = new SaveFileDialog();
-
-                        sfc.FileName = "AuthRules.xml";
-
+                        SaveFileDialog sfc = new SaveFileDialog()
+                        {
+                            FileName = "AuthRules.xml"
+                        };
                         if (sfc.ShowDialog() == true)
                         {
                             var bytes = Server.Return((ILoginServer ls) => ls.DownloadAuthRules());

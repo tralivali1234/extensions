@@ -14,15 +14,18 @@ using Signum.Utilities;
 using Signum.Utilities.ExpressionTrees;
 using Signum.Entities.Isolation;
 using Signum.Engine.Isolation;
+using Signum.Entities.Templating;
 
 namespace Signum.Engine.Mailing
 {
     public interface ISystemEmail
     {
-        Entity UntypedEntity { get; }
+        ModifiableEntity UntypedEntity { get; }
         List<EmailOwnerRecipientData> GetRecipients();
 
         List<Filter> GetFilters(QueryDescription qd);
+        Pagination GetPagination();
+        List<Order> GetOrders(QueryDescription queryDescription);
     }
 
     public class EmailOwnerRecipientData
@@ -37,7 +40,7 @@ namespace Signum.Engine.Mailing
     }
 
     public abstract class SystemEmail<T> : ISystemEmail
-        where T : Entity
+        where T : ModifiableEntity
     {
         public SystemEmail(T entity)
         {
@@ -46,7 +49,7 @@ namespace Signum.Engine.Mailing
 
         public T Entity { get; set; }
 
-        Entity ISystemEmail.UntypedEntity
+        ModifiableEntity ISystemEmail.UntypedEntity
         {
             get { return Entity; }
         }
@@ -63,10 +66,62 @@ namespace Signum.Engine.Mailing
 
         public virtual List<Filter> GetFilters(QueryDescription qd)
         {
+            var imp = qd.Columns.SingleEx(a => a.IsEntity).Implementations.Value;
+
+            if (imp.IsByAll && typeof(Entity).IsAssignableFrom(typeof(T)) || imp.Types.Contains(typeof(T)))
+                return new List<Filter>
+                {
+                    new Filter(QueryUtils.Parse("Entity", qd, 0), FilterOperation.EqualTo, ((Entity)(ModifiableEntity)Entity).ToLite())
+                };
+
+            throw new InvalidOperationException($"Since {typeof(T).Name} is not in {imp}, it's necessary to override ${nameof(GetFilters)} in ${this.GetType().Name}");
+        }
+
+        public virtual List<Order> GetOrders(QueryDescription queryDescription)
+        {
+            return new List<Order>();
+        }
+
+        public virtual Pagination GetPagination()
+        {
+            return new Pagination.All();
+        }
+    }
+
+    public class MultiEntityEmailTemplate : SystemEmail<MultiEntityModel>
+    {
+        public MultiEntityEmailTemplate(MultiEntityModel entity) : base(entity)
+        {
+        }
+
+        public override List<Filter> GetFilters(QueryDescription qd)
+        {
             return new List<Filter>
             {
-                new Filter(QueryUtils.Parse("Entity", qd, 0), FilterOperation.EqualTo, Entity.ToLite())
+                new Filter(QueryUtils.Parse("Entity", qd, 0), FilterOperation.IsIn, this.Entity.Entities.ToList())
             };
+        }
+    }
+
+    public class QueryEmailTemplate : SystemEmail<QueryModel>
+    {
+        public QueryEmailTemplate(QueryModel entity) : base(entity)
+        {
+        }
+
+        public override List<Filter> GetFilters(QueryDescription qd)
+        {
+            return this.Entity.Filters;
+        }
+
+        public override Pagination GetPagination()
+        {
+            return this.Entity.Pagination;
+        }
+
+        public override List<Order> GetOrders(QueryDescription queryDescription)
+        {
+            return this.Entity.Orders;
         }
     }
 
@@ -89,15 +144,13 @@ namespace Signum.Engine.Mailing
             {
                 sb.Schema.Generating += Schema_Generating;
                 sb.Schema.Synchronizing += Schema_Synchronizing;
-
-                dqm.RegisterQuery(typeof(SystemEmailEntity), () =>
-                    (from se in Database.Query<SystemEmailEntity>()
-                     select new
-                     {
-                         Entity = se,
-                         se.Id,
-                         se.FullClassName,
-                     }));
+                sb.Include<SystemEmailEntity>()
+                    .WithQuery(dqm, () => se => new
+                    {
+                        Entity = se,
+                        se.Id,
+                        se.FullClassName,
+                    });
 
                 new Graph<EmailTemplateEntity>.ConstructFrom<SystemEmailEntity>(EmailTemplateOperation.CreateEmailTemplateFromSystemEmail)
                 {
@@ -107,7 +160,6 @@ namespace Signum.Engine.Mailing
                 SystemEmailsToEmailTemplates = sb.GlobalLazy(() => (
                     from et in Database.Query<EmailTemplateEntity>()
                     where et.SystemEmail != null
-                        && (et.Active && (et.EndDate == null || et.EndDate > TimeZoneManager.Now))
                     select new { se = et.SystemEmail, et })
                     .GroupToDictionary(pair => pair.se.ToLite(), pair => pair.et),
                     new InvalidateWith(typeof(SystemEmailEntity), typeof(EmailTemplateEntity)));
@@ -115,9 +167,14 @@ namespace Signum.Engine.Mailing
                 systemEmailToEntity = sb.GlobalLazy(() =>
                 {
                     var dbSystemEmails = Database.RetrieveAll<SystemEmailEntity>();
-                    return EnumerableExtensions.JoinStrict(
-                        dbSystemEmails, systemEmails.Keys, systemEmail => systemEmail.FullClassName, type => type.FullName,
-                        (systemEmail, type) => KVP.Create(type, systemEmail), "caching EmailTemplates. Consider synchronize").ToDictionary();
+                    return EnumerableExtensions.JoinRelaxed(
+                        dbSystemEmails,
+                        systemEmails.Keys,
+                        systemEmail => systemEmail.FullClassName,
+                        type => type.FullName,
+                        (systemEmail, type) => KVP.Create(type, systemEmail),
+                        "caching EmailTemplates")
+                        .ToDictionary();
                 }, new InvalidateWith(typeof(SystemEmailEntity)));
 
 
@@ -145,16 +202,15 @@ namespace Signum.Engine.Mailing
             Dictionary<string, SystemEmailEntity> current = replacements.ApplyReplacementsToOld(old, systemTemplatesReplacementKey);
 
             using (replacements.WithReplacedDatabaseName())
-                return Synchronizer.SynchronizeScript(should, current,
-                    (tn, s) => table.InsertSqlSync(s),
-                    (tn, c) => table.DeleteSqlSync(c),
-                    (tn, s, c) =>
+                return Synchronizer.SynchronizeScript(Spacing.Double, should, current,
+                    createNew: (tn, s) => table.InsertSqlSync(s),
+                    removeOld: (tn, c) => table.DeleteSqlSync(c, se => se.FullClassName == c.FullClassName),
+                    mergeBoth: (tn, s, c) =>
                     {
                         var oldClassName = c.FullClassName;
                         c.FullClassName = s.FullClassName;
-                        return table.UpdateSqlSync(c, comment: oldClassName);
-                    },
-                    Spacing.Double);
+                        return table.UpdateSqlSync(c, se => se.FullClassName == c.FullClassName, comment: oldClassName);
+                    });
         }
 
         public static void RegisterSystemEmail<T>(Func<EmailTemplateEntity> defaultTemplateConstructor, object queryName = null)
@@ -175,7 +231,7 @@ namespace Signum.Engine.Mailing
             };
         }
 
-        static Type GetEntityType(Type model)
+        public static Type GetEntityType(Type model)
         {
             var baseType = model.Follow(a => a.BaseType).FirstOrDefault(b => b.IsInstantiationOf(typeof(SystemEmail<>)));
 
@@ -229,23 +285,23 @@ namespace Signum.Engine.Mailing
             if (systemEmail.UntypedEntity == null)
                 throw new InvalidOperationException("Entity property not set on SystemEmail");
 
-            using (IsolationEntity.Override(systemEmail.UntypedEntity.TryIsolation()))
+            using (IsolationEntity.Override((systemEmail.UntypedEntity as Entity)?.TryIsolation()))
             {
                 var systemEmailEntity = ToSystemEmailEntity(systemEmail.GetType());
-                var template = GetDefaultTemplate(systemEmailEntity);
+                var template = GetDefaultTemplate(systemEmailEntity, systemEmail.UntypedEntity as Entity);
 
-                return EmailTemplateLogic.CreateEmailMessage(template.ToLite(), systemEmail.UntypedEntity, systemEmail);
+                return EmailTemplateLogic.CreateEmailMessage(template.ToLite(), systemEmail: systemEmail);
             }
         }
 
-        private static EmailTemplateEntity GetDefaultTemplate(SystemEmailEntity systemEmailEntity)
+  
+
+        private static EmailTemplateEntity GetDefaultTemplate(SystemEmailEntity systemEmailEntity, Entity entity)
         {
             var isAllowed = Schema.Current.GetInMemoryFilter<EmailTemplateEntity>(userInterface: false);
 
             var templates = SystemEmailsToEmailTemplates.Value.TryGetC(systemEmailEntity.ToLite()).EmptyIfNull();
-
-            templates = templates.Where(isAllowed);
-
+            
             if (templates.IsNullOrEmpty())
             {
                 using (ExecutionMode.Global())
@@ -260,7 +316,8 @@ namespace Signum.Engine.Mailing
                 }
             }
 
-            return templates.Where(t => t.IsActiveNow()).SingleEx(() => "Active EmailTemplates for SystemEmail {0}".FormatWith(systemEmailEntity));
+            templates = templates.Where(isAllowed);
+            return templates.Where(t => t.IsApplicable(entity)).SingleEx(() => "Active EmailTemplates for SystemEmail {0}".FormatWith(systemEmailEntity));
         }
 
         internal static EmailTemplateEntity CreateDefaultTemplate(SystemEmailEntity systemEmail)
@@ -275,7 +332,6 @@ namespace Signum.Engine.Mailing
                 template.Name = systemEmail.FullClassName;
 
             template.SystemEmail = systemEmail;
-            template.Active = true;
             template.Query = QueryLogic.GetQueryEntity(info.QueryName);
 
             template.ParseData(DynamicQueryManager.Current.QueryDescription(info.QueryName));
@@ -290,7 +346,6 @@ namespace Signum.Engine.Mailing
                 var systemEmailEntity = ToSystemEmailEntity(systemEmail);
 
                 var template = Database.Query<EmailTemplateEntity>().SingleOrDefaultEx(t =>
-                    t.IsActiveNow() == true &&
                     t.SystemEmail == systemEmailEntity);
 
                 if (template == null)
@@ -307,6 +362,18 @@ namespace Signum.Engine.Mailing
         public static bool RequiresExtraParameters(SystemEmailEntity systemEmailEntity)
         {
             return GetEntityConstructor(systemEmailToType.Value.GetOrThrow(systemEmailEntity)) == null;
+        }
+
+        internal static bool HasDefaultTemplateConstructor(SystemEmailEntity systemEmailTemplate)
+        {
+            SystemEmailInfo info = systemEmails.GetOrThrow(systemEmailTemplate.ToType());
+            
+            return info.DefaultTemplateConstructor != null;
+        }
+
+        public static ISystemEmail CreateSystemEmail(SystemEmailEntity systemEmail, ModifiableEntity model)
+        {
+            return (ISystemEmail)SystemEmailLogic.GetEntityConstructor(systemEmail.ToType()).Invoke(new[] { model });
         }
 
         public static ConstructorInfo GetEntityConstructor(Type systemEmail)

@@ -1,5 +1,6 @@
 ﻿using Signum.Engine.Cache;
 using Signum.Engine.Maps;
+using Signum.Engine.SchemaInfoTables;
 using Signum.Entities;
 using Signum.Entities.Migrations;
 using Signum.Utilities;
@@ -30,50 +31,67 @@ namespace Signum.Engine.Migrations
         {
             while (true)
             {
-                Dictionary<string, MigrationInfo> dictionary = ReadMigrationsDirectory();
+                List<MigrationInfo> list = ReadMigrationsDirectory();
 
-                SetExecuted(dictionary);
+                SetExecuted(list);
 
-                if (!Prompt(dictionary, autoRun) || autoRun)
+                if (!Prompt(list, autoRun) || autoRun)
                     return;
             }
         }
 
-        private static void SetExecuted(Dictionary<string, MigrationInfo> dictionary)
+        private static void SetExecuted(List<MigrationInfo> migrations)
         {
             MigrationLogic.EnsureMigrationTable<SqlMigrationEntity>();
+            AddCommentColumnIfNecessary();
 
-            var folder = dictionary.Select(a => a.Value.Version).OrderBy().ToList();
-            var database = Database.Query<SqlMigrationEntity>().Select(m => m.VersionNumber).OrderBy().ToList();
+            var first = migrations.FirstOrDefault();
 
-            if (database.Any() && folder.Any())
+            var executedMigrations = Database.Query<SqlMigrationEntity>().Select(m => new { m.VersionNumber, m.Comment })
+                .OrderBy(a => a.VersionNumber)
+                .ToList()
+                .Where(d => first == null || first.Version.CompareTo(d.VersionNumber) <= 0)
+                .ToList();
+
+            var dic = migrations.ToDictionaryEx(a => a.Version, "Migrations in folder");
+
+            foreach (var migration in executedMigrations)
             {
-                {
-                    var maxDatabase = database.Max();
+                var m = dic.TryGetC(migration.VersionNumber);
+                if (m != null)
+                    m.IsExecuted = true;
+                else
+                    migrations.Add(new MigrationInfo
+                    {
+                        FileName = null,
+                        Comment = ">> In Database Only << " + migration.Comment,
+                        IsExecuted = true,
+                        Version = migration.VersionNumber
+                    });
 
-                    var oldNotExecuted = folder.Except(database).Where(f => f.CompareTo(maxDatabase) < 0).ToList();
-
-                    if (oldNotExecuted.Any())
-                        throw new InvalidOperationException("There are old migrations in the folder that have not been executed!:\r\n" + oldNotExecuted.ToString("\r\n").Indent(4));
-                }
-
-                {
-                    var minFolder = folder.Min();
-
-                    var executedNewMigrations = database.Except(folder).Where(f => minFolder.CompareTo(f) < 0).ToList();
-
-                    if (executedNewMigrations.Any())
-                        throw new InvalidOperationException("There are executed migrations newer than anything in the folder!:\r\n" + executedNewMigrations.ToString("\r\n").Indent(4));
-                }
             }
 
-            foreach (var v in dictionary.Values)
+            migrations.Sort(a => a.Version);
+        }
+
+        private static void AddCommentColumnIfNecessary()
+        {
+            var table = Schema.Current.Table<SqlMigrationEntity>();
+            var col = table.Columns[nameof(SqlMigrationEntity.Comment)];
+
+            var hasComment = Database.View<SysTables>()
+                .Where(a => a.Schema().name == table.Name.Schema.Name && a.name == table.Name.Name)
+                .SelectMany(t => t.Columns())
+                .Any(c => c.name == col.Name);
+                
+            if (!hasComment)
             {
-                v.IsExecuted = database.Contains(v.Version);
+                SafeConsole.WriteLineColor(ConsoleColor.White, "Column " + col.Name + " created in " + table.Name + "...");
+                Executor.ExecuteNonQuery($"ALTER TABLE {table.Name} ADD {col.Name} NVARCHAR({col.Size}) NULL");
             }
         }
 
-        private static Dictionary<string, MigrationInfo> ReadMigrationsDirectory()
+        public static List<MigrationInfo> ReadMigrationsDirectory()
         {
             Console.WriteLine();
             SafeConsole.WriteLineColor(ConsoleColor.DarkGray, "Reading migrations from: " + MigrationsDirectory);
@@ -95,26 +113,51 @@ namespace Signum.Engine.Migrations
                 throw new InvalidOperationException("Some scripts in the migrations directory have an invalid format (yyyy.MM.dd-HH.mm.ss_OptionalComment.sql) " +
                     errors.ToString(a => Path.GetFileName(a.fileName), "\r\n"));
 
-            var dictionary = matches.Select(a => new MigrationInfo
+            var list = matches.Select(a => new MigrationInfo
             {
                 FileName = a.fileName,
                 Version = a.match.Groups["version"].Value,
                 Comment = a.match.Groups["comment"].Value,
-            }).ToDictionary(a => a.Version, "Migrations with the same version");
-
-            return dictionary;
+            }).OrderBy(a => a.Version).ToList();
+            
+            return list;
         }
 
-        public const string DatabaseNameReplacement = "$DatabaseName$";
+        public const string DatabaseNameReplacement = "#DatabaseName#";
 
-        private static bool Prompt(Dictionary<string, MigrationInfo> graph, bool autoRun)
+        private static bool Prompt(List<MigrationInfo> migrations, bool autoRun)
         {
-            List<MigrationInfo> migrationsInOrder = graph.Values.OrderBy(a => a.Version).ToList();
+            Draw(migrations, null);
 
-            Draw(migrationsInOrder, null);
+            if (migrations.Any(a => a.IsExecuted && a.FileName == null))
+            {
+                var str = "There are fresh executed migrations that are not in the folder. Get latest version?";
+                if (autoRun)
+                    throw new InvalidOperationException(str);
 
-            var last = migrationsInOrder.LastOrDefault() ?? null;
-            if (migrationsInOrder.All(a=>a.IsExecuted))
+                SafeConsole.WriteLineColor(ConsoleColor.Red, str);
+                return false;
+            }
+
+
+            if (migrations.SkipWhile(a => a.IsExecuted).Any(a => a.IsExecuted))
+            {
+                var str = "Possible merge conflict. There are old migrations in the folder that have not been executed!. You need to manually discard one migration branch.";
+                if (autoRun)
+                    throw new InvalidOperationException(str);
+
+                SafeConsole.WriteLineColor(ConsoleColor.Red, str);
+                Console.WriteLine();
+                Console.Write("Write '");
+                SafeConsole.WriteColor(ConsoleColor.White, "force");
+                Console.WriteLine("' to execute them anyway");
+
+                if (Console.ReadLine() != "force")
+                    return false;
+            }
+
+            var last = migrations.LastOrDefault() ?? null;
+            if (migrations.All(a=>a.IsExecuted))
             {
                 if (autoRun || !SafeConsole.Ask("Create new migration?"))
                     return false;
@@ -128,9 +171,13 @@ namespace Signum.Engine.Migrations
                 }
                 else
                 {
+                    SafeConsole.WriteLineColor(ConsoleColor.DarkGray, script.ToString().Indent(4));
+
+                    Console.WriteLine();
+
                     string version = DateTime.Now.ToString("yyyy.MM.dd-HH.mm.ss");
 
-                    string comment = SafeConsole.AskString("Comment for the new Migration? ", stringValidator: s => null);
+                    string comment = SafeConsole.AskString("Comment for the new Migration? ", stringValidator: s => null).Trim();
 
                     string fileName = version + (comment.HasText() ? "_" + FileNameValidatorAttribute.RemoveInvalidCharts(comment): null) + ".sql";
 
@@ -143,17 +190,21 @@ namespace Signum.Engine.Migrations
             }
             else
             {
-                if (!autoRun && !SafeConsole.Ask("Run {0} migration(s)?".FormatWith(migrationsInOrder.Count(a => !a.IsExecuted))))
+                if (!autoRun && !SafeConsole.Ask("Run {0} migration(s)?".FormatWith(migrations.Count(a => !a.IsExecuted))))
                     return false;
 
                 try
                 {
-                    foreach (var item in migrationsInOrder.AsEnumerable().SkipWhile(a => a.IsExecuted))
-                    {
-                        Draw(migrationsInOrder, item);
+                    DateTime start = TimeZoneManager.Now;
 
-                        Execute(item, autoRun);
+                    foreach (var mi in migrations.AsEnumerable().Where(a => !a.IsExecuted))
+                    {
+                        Draw(migrations, mi);
+
+                        Execute(mi);
                     }
+
+                    Console.WriteLine("Elapsed time: {0}".FormatWith(TimeZoneManager.Now.Subtract(start).ToString(@"hh\:mm\:ss")));
 
                     return true;
                 }
@@ -170,39 +221,56 @@ namespace Signum.Engine.Migrations
 
         public static int Timeout = 5 * 60; 
 
-        private static void Execute(MigrationInfo mi, bool autoRun)
+        private static void Execute(MigrationInfo mi)
         {
             string title = mi.Version + (mi.Comment.HasText() ? " ({0})".FormatWith(mi.Comment) : null);
-
-            string databaseName = Connector.Current.DatabaseName();
-
-            using (Connector.CommandTimeoutScope(Timeout))
-            using (Transaction tr = new Transaction())
+            string text = File.ReadAllText(mi.FileName);
+            
+            using (Transaction tr = Transaction.ForceNew(System.Data.IsolationLevel.Unspecified))
             {
-                string text = File.ReadAllText(mi.FileName);
+                ExecuteScript(title, text);
 
-                text = text.Replace(DatabaseNameReplacement, databaseName);
+                SqlMigrationEntity m = new SqlMigrationEntity
+                {
+                    VersionNumber = mi.Version,
+                    Comment = mi.Comment,
+                }.Save();
 
-                var parts = Regex.Split(text, " *GO *\r?\n", RegexOptions.IgnoreCase).Where(a => !string.IsNullOrWhiteSpace(a)).ToArray();
+                mi.IsExecuted = true;
+
+                tr.Commit();
+            }
+        }
+
+        public static void ExecuteScript(string title, string script)
+        {
+            using (Connector.CommandTimeoutScope(Timeout))
+            {
+                string databaseName = Connector.Current.DatabaseName();
+
+                script = script.Replace(DatabaseNameReplacement, databaseName);
+
+                var parts = Regex.Split(script, " *GO *(\r?\n|$)", RegexOptions.IgnoreCase).Where(a => !string.IsNullOrWhiteSpace(a)).ToArray();
 
                 int pos = 0;
 
                 try
-                {   
-                    for (pos = 0; pos < parts.Length; pos++)
-			        {
-                        if (autoRun)
-                            Executor.ExecuteNonQuery(parts[pos]);
-                        else
-                            SafeConsole.WaitExecute("Executing {0} [{1}/{2}]".FormatWith(title, pos + 1, parts.Length), () => Executor.ExecuteNonQuery(parts[pos]));
-			        }
-                }
-                catch (SqlException e)
                 {
+                    for (pos = 0; pos < parts.Length; pos++)
+                    {
+                        SafeConsole.WaitExecute("Executing {0} [{1}/{2}]".FormatWith(title, pos + 1, parts.Length), () => Executor.ExecuteNonQuery(parts[pos]));
+                    }
+                }
+                catch (Exception ex)
+                {
+                    var e = ex as SqlException ?? ex.InnerException as SqlException;
+                    if (e == null)
+                        throw;
+
                     Console.WriteLine();
                     Console.WriteLine();
 
-                    var list = text.Lines();
+                    var list = script.Lines();
 
                     var lineNumer = (e.LineNumber - 1) + pos + parts.Take(pos).Sum(a => a.Lines().Length);
 
@@ -229,17 +297,8 @@ namespace Signum.Engine.Migrations
 
                     Console.WriteLine();
 
-                    throw new MigrationException();
+                    throw new MigrationException(ex.Message, ex);
                 }
-
-                SqlMigrationEntity m = new SqlMigrationEntity
-                {
-                    VersionNumber = mi.Version,
-                }.Save();
-
-                mi.IsExecuted = true;
-
-                tr.Commit();
             }
         }
 
@@ -249,9 +308,11 @@ namespace Signum.Engine.Migrations
 
             foreach (var mi in migrationsInOrder)
             {
-                ConsoleColor color = mi.IsExecuted ? ConsoleColor.DarkGreen :
-                                     current == mi ? ConsoleColor.Green :
-                                     ConsoleColor.White;
+                ConsoleColor color = current == mi ? ConsoleColor.Green :
+                    mi.FileName != null && mi.IsExecuted ? ConsoleColor.DarkGreen :
+                    mi.FileName == null && mi.IsExecuted ? ConsoleColor.Red :
+                    mi.FileName != null && !mi.IsExecuted ? ConsoleColor.White :
+                    throw new InvalidOperationException();
 
 
                 SafeConsole.WriteColor(color,  
@@ -260,7 +321,7 @@ namespace Signum.Engine.Migrations
                                     "  ");
                 
                 SafeConsole.WriteColor(color, mi.Version);
-                Console.WriteLine(" " + mi.Comment);
+                SafeConsole.WriteLineColor(mi.FileName == null ? ConsoleColor.Red: ConsoleColor.Gray, " " + mi.Comment);
             }
 
             Console.WriteLine();
@@ -295,6 +356,7 @@ namespace Signum.Engine.Migrations
             public string FileName;
             public string Version;
             public string Comment;
+
             public bool IsExecuted;
 
             public override string ToString()

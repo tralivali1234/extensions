@@ -15,17 +15,16 @@ namespace Signum.Entities.Mailing
     {
         public bool Active { get; set; }
 
+        public bool FullComparation { get; set; }
+
         public int Port { get; set; } = 110;
 
-        [NotNullable, SqlDbType(Size = 100)]
         [StringLengthValidator(AllowNulls = false, Min = 3, Max = 100)]
         public string Host { get; set; }
 
-        [SqlDbType(Size = 100)]
         [StringLengthValidator(AllowNulls = true, Max = 100)]
         public string Username { get; set; }
 
-        [SqlDbType(Size = 100)]
         [StringLengthValidator(AllowNulls = true, Max = 100)]
         public string Password { get; set; }
 
@@ -48,8 +47,8 @@ namespace Signum.Entities.Mailing
         [Unit("d")]
         public int? DeleteMessagesAfter { get; set; } = 14;
 
-        [NotNullable]
-        public MList<ClientCertificationFileEntity> ClientCertificationFiles { get; set; } = new MList<ClientCertificationFileEntity>();
+        [NotNullValidator]
+        public MList<ClientCertificationFileEmbedded> ClientCertificationFiles { get; set; } = new MList<ClientCertificationFileEmbedded>();
 
         public override string ToString()
         {
@@ -65,6 +64,7 @@ namespace Signum.Entities.Mailing
         public static ConstructSymbol<Pop3ReceptionEntity>.From<Pop3ConfigurationEntity> ReceiveEmails;
     }
 
+    [AutoInit]
     public static class Pop3ConfigurationAction
     {
         public static SimpleTaskSymbol ReceiveAllActivePop3Configurations;
@@ -73,7 +73,6 @@ namespace Signum.Entities.Mailing
     [Serializable, EntityKind(EntityKind.System, EntityData.Transactional)]
     public class Pop3ReceptionEntity : Entity
     {
-        [NotNullable]
         [NotNullValidator]
         public Lite<Pop3ConfigurationEntity> Pop3Configuration { get; set; }
 
@@ -90,11 +89,10 @@ namespace Signum.Entities.Mailing
     [Serializable, EntityKind(EntityKind.System, EntityData.Transactional)]
     public class Pop3ReceptionExceptionEntity : Entity
     {
-        [NotNullable]
         [NotNullValidator]
         public Lite<Pop3ReceptionEntity> Reception { get; set; }
 
-        [NotNullable, UniqueIndex]
+        [UniqueIndex]
         [NotNullValidator]
         public Lite<ExceptionEntity> Exception { get; set; }
     }

@@ -1,7 +1,8 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <Import Project="..\..\packages\Microsoft.CodeDom.Providers.DotNetCompilerPlatform.1.0.1\build\Microsoft.CodeDom.Providers.DotNetCompilerPlatform.props" Condition="Exists('..\..\packages\Microsoft.CodeDom.Providers.DotNetCompilerPlatform.1.0.1\build\Microsoft.CodeDom.Providers.DotNetCompilerPlatform.props')" />
-  <Import Project="..\..\packages\Microsoft.Net.Compilers.1.0.0\build\Microsoft.Net.Compilers.props" Condition="Exists('..\..\packages\Microsoft.Net.Compilers.1.0.0\build\Microsoft.Net.Compilers.props')" />
+  <Import Project="..\..\packages\Microsoft.CodeDom.Providers.DotNetCompilerPlatform.1.0.7\build\net45\Microsoft.CodeDom.Providers.DotNetCompilerPlatform.props" Condition="Exists('..\..\packages\Microsoft.CodeDom.Providers.DotNetCompilerPlatform.1.0.7\build\net45\Microsoft.CodeDom.Providers.DotNetCompilerPlatform.props')" />
+  <Import Project="..\..\packages\Microsoft.Net.Compilers.2.3.2\build\Microsoft.Net.Compilers.props" Condition="Exists('..\..\packages\Microsoft.Net.Compilers.2.3.2\build\Microsoft.Net.Compilers.props')" />
+  <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\TypeScript\Microsoft.TypeScript.Default.props" Condition="Exists('$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\TypeScript\Microsoft.TypeScript.Default.props')" />
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
@@ -14,7 +15,7 @@
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>Signum.Web</RootNamespace>
     <AssemblyName>Signum.Web.Extensions</AssemblyName>
-    <TargetFrameworkVersion>v4.6</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.6.2</TargetFrameworkVersion>
     <MvcBuildViews>false</MvcBuildViews>
     <UseIISExpress>false</UseIISExpress>
     <FileUpgradeFlags>
@@ -29,7 +30,8 @@
     <UseGlobalApplicationHostFile />
     <NuGetPackageImportStamp>
     </NuGetPackageImportStamp>
-    <TypeScriptToolsVersion>1.7</TypeScriptToolsVersion>
+    <TypeScriptToolsVersion>2.5</TypeScriptToolsVersion>
+    <Use64BitIISExpress />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -41,6 +43,7 @@
     <WarningLevel>4</WarningLevel>
     <CodeAnalysisRuleSet>AllRules.ruleset</CodeAnalysisRuleSet>
     <Prefer32Bit>false</Prefer32Bit>
+    <TypeScriptCompileBlocked>false</TypeScriptCompileBlocked>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
@@ -53,25 +56,35 @@
     <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="DocumentFormat.OpenXml, Version=2.5.5631.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
-      <Private>True</Private>
-      <HintPath>..\..\packages\DocumentFormat.OpenXml.2.5\lib\DocumentFormat.OpenXml.dll</HintPath>
+    <Reference Include="DocumentFormat.OpenXml, Version=2.7.2.0, Culture=neutral, PublicKeyToken=8fb06cb64d019a17, processorArchitecture=MSIL">
+      <HintPath>..\..\packages\DocumentFormat.OpenXml.2.7.2\lib\net46\DocumentFormat.OpenXml.dll</HintPath>
     </Reference>
-    <Reference Include="Microsoft.CodeDom.Providers.DotNetCompilerPlatform, Version=1.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
-      <HintPath>..\..\packages\Microsoft.CodeDom.Providers.DotNetCompilerPlatform.1.0.1\lib\net45\Microsoft.CodeDom.Providers.DotNetCompilerPlatform.dll</HintPath>
+    <Reference Include="Microsoft.CodeDom.Providers.DotNetCompilerPlatform, Version=1.0.7.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
+      <HintPath>..\..\packages\Microsoft.CodeDom.Providers.DotNetCompilerPlatform.1.0.7\lib\net45\Microsoft.CodeDom.Providers.DotNetCompilerPlatform.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.SqlServer.Types, Version=14.0.0.0, Culture=neutral, PublicKeyToken=89845dcd8080cc91, processorArchitecture=MSIL">
+      <HintPath>..\..\packages\Microsoft.SqlServer.Types.14.0.314.76\lib\net40\Microsoft.SqlServer.Types.dll</HintPath>
       <Private>True</Private>
     </Reference>
     <Reference Include="Microsoft.Web.Infrastructure, Version=1.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
       <Private>True</Private>
       <HintPath>..\..\packages\Microsoft.Web.Infrastructure.1.0.0.0\lib\net40\Microsoft.Web.Infrastructure.dll</HintPath>
     </Reference>
-    <Reference Include="Newtonsoft.Json, Version=7.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
-      <HintPath>..\..\packages\Newtonsoft.Json.7.0.1\lib\net45\Newtonsoft.Json.dll</HintPath>
-      <Private>True</Private>
+    <Reference Include="Newtonsoft.Json, Version=10.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
+      <HintPath>..\..\packages\Newtonsoft.Json.10.0.3\lib\net45\Newtonsoft.Json.dll</HintPath>
+    </Reference>
+    <Reference Include="Signum.Analyzer">
+      <HintPath>..\..\Framework\Signum.Analyzer\Binaries\Signum.Analyzer.dll</HintPath>
     </Reference>
     <Reference Include="System.Activities" />
     <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="System.IdentityModel" />
+    <Reference Include="System.IO.FileSystem.Primitives, Version=4.0.2.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
+      <HintPath>..\..\packages\System.IO.FileSystem.Primitives.4.3.0\lib\net46\System.IO.FileSystem.Primitives.dll</HintPath>
+    </Reference>
+    <Reference Include="System.IO.Packaging, Version=4.0.1.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
+      <HintPath>..\..\packages\System.IO.Packaging.4.3.0\lib\net46\System.IO.Packaging.dll</HintPath>
+    </Reference>
     <Reference Include="System.Runtime.Serialization" />
     <Reference Include="System.ServiceModel" />
     <Reference Include="System.ServiceModel.Activation" />
@@ -81,6 +94,9 @@
     <Reference Include="System" />
     <Reference Include="System.Data" />
     <Reference Include="System.Drawing" />
+    <Reference Include="System.ValueTuple, Version=4.0.2.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+      <HintPath>..\..\packages\System.ValueTuple.4.4.0\lib\net461\System.ValueTuple.dll</HintPath>
+    </Reference>
     <Reference Include="System.Web.DynamicData" />
     <Reference Include="System.Web.Entity" />
     <Reference Include="System.Web.ApplicationServices" />
@@ -119,6 +135,7 @@
     <Reference Include="System.Web.Services" />
     <Reference Include="System.EnterpriseServices" />
     <Reference Include="System.Xml.Linq" />
+    <Reference Include="WindowsBase" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Alerts\AlertClient.cs" />
@@ -236,22 +253,22 @@
       <DesignTime>True</DesignTime>
       <DependentUpon>_ViewStart.cshtml</DependentUpon>
     </Compile>
+    <Compile Include="Dashboard\Views\DashboardNavbarPartView.generated.cs">
+      <AutoGen>True</AutoGen>
+      <DesignTime>True</DesignTime>
+      <DependentUpon>DashboardNavbarPartView.cshtml</DependentUpon>
+    </Compile>
+    <Compile Include="Dashboard\Views\DashboardNavbarView.generated.cs">
+      <AutoGen>True</AutoGen>
+      <DesignTime>True</DesignTime>
+      <DependentUpon>DashboardNavbarView.cshtml</DependentUpon>
+    </Compile>
     <Compile Include="DiffLog\DiffLogClient.cs" />
     <Compile Include="Dashboard\GridRepeaterHelper.cs" />
     <Compile Include="Dashboard\Views\Admin\DashboardAdmin.generated.cs">
       <AutoGen>True</AutoGen>
       <DesignTime>True</DesignTime>
       <DependentUpon>DashboardAdmin.cshtml</DependentUpon>
-    </Compile>
-    <Compile Include="Dashboard\Views\Admin\CountSearchControlPart.generated.cs">
-      <AutoGen>True</AutoGen>
-      <DesignTime>True</DesignTime>
-      <DependentUpon>CountSearchControlPart.cshtml</DependentUpon>
-    </Compile>
-    <Compile Include="Dashboard\Views\Admin\CountUserQueryElement.generated.cs">
-      <AutoGen>True</AutoGen>
-      <DesignTime>True</DesignTime>
-      <DependentUpon>CountUserQueryElement.cshtml</DependentUpon>
     </Compile>
     <Compile Include="Dashboard\Views\Admin\LinkElement.generated.cs">
       <AutoGen>True</AutoGen>
@@ -287,6 +304,11 @@
       <AutoGen>True</AutoGen>
       <DesignTime>True</DesignTime>
       <DependentUpon>_ViewStart.cshtml</DependentUpon>
+    </Compile>
+    <Compile Include="Excel\Views\ExcelAttachment.generated.cs">
+      <DependentUpon>ExcelAttachment.cshtml</DependentUpon>
+      <AutoGen>True</AutoGen>
+      <DesignTime>True</DesignTime>
     </Compile>
     <Compile Include="Help\HelpTranslator.cs" />
     <Compile Include="Files\Views\FilePath.generated.cs">
@@ -343,6 +365,11 @@
       <AutoGen>True</AutoGen>
       <DesignTime>True</DesignTime>
       <DependentUpon>EmailMasterTemplateMessage.cshtml</DependentUpon>
+    </Compile>
+    <Compile Include="Mailing\Views\SendEmailTask.generated.cs">
+      <DependentUpon>SendEmailTask.cshtml</DependentUpon>
+      <AutoGen>True</AutoGen>
+      <DesignTime>True</DesignTime>
     </Compile>
     <Compile Include="Mailing\Views\Pop3Reception.generated.cs">
       <DependentUpon>Pop3Reception.cshtml</DependentUpon>
@@ -419,6 +446,11 @@
       <AutoGen>True</AutoGen>
       <DesignTime>True</DesignTime>
     </Compile>
+    <Compile Include="Omnibox\Views\OmniboxPanelPart.generated.cs">
+      <AutoGen>True</AutoGen>
+      <DesignTime>True</DesignTime>
+      <DependentUpon>OmniboxPanelPart.cshtml</DependentUpon>
+    </Compile>
     <Compile Include="Scheduler\Controllers\SchedulerController.cs" />
     <Compile Include="Scheduler\Views\SchedulerPanel.generated.cs">
       <DependentUpon>SchedulerPanel.cshtml</DependentUpon>
@@ -445,13 +477,11 @@
       <DesignTime>True</DesignTime>
       <DependentUpon>_ViewStart.cshtml</DependentUpon>
     </Compile>
+    <Compile Include="SqlServerTypes\Loader.cs" />
     <Compile Include="Templating\TemplatingClient.cs" />
     <Compile Include="Translation\Controllers\TranslatedInstanceController.cs" />
     <Compile Include="Translation\Controllers\TranslationController.cs" />
-    <Compile Include="Translation\TranslatedInstanceSynchronizer.cs" />
     <Compile Include="Translation\TranslationClient.cs" />
-    <Compile Include="Translation\ITranslator.cs" />
-    <Compile Include="Translation\TranslationSynchronizer.cs" />
     <Compile Include="Notes\Controllers\NoteController.cs" />
     <Compile Include="AuthAdmin\AuthAdminClient.cs" />
     <Compile Include="AuthAdmin\Controllers\AuthAdminController.cs" />
@@ -587,11 +617,6 @@
       <AutoGen>True</AutoGen>
       <DesignTime>True</DesignTime>
       <DependentUpon>Dashboard.cshtml</DependentUpon>
-    </Compile>
-    <Compile Include="Dashboard\Views\CountSearchControlPart.generated.cs">
-      <AutoGen>True</AutoGen>
-      <DesignTime>True</DesignTime>
-      <DependentUpon>CountSearchControlPart.cshtml</DependentUpon>
     </Compile>
     <Compile Include="Dashboard\Views\LinkListPart.generated.cs">
       <DependentUpon>LinkListPart.cshtml</DependentUpon>
@@ -846,16 +871,6 @@
       <DesignTime>True</DesignTime>
       <DependentUpon>ScheduledTask.cshtml</DependentUpon>
     </Compile>
-    <Compile Include="Scheduler\Views\ScheduleRuleDaily.generated.cs">
-      <AutoGen>True</AutoGen>
-      <DesignTime>True</DesignTime>
-      <DependentUpon>ScheduleRuleDaily.cshtml</DependentUpon>
-    </Compile>
-    <Compile Include="Scheduler\Views\ScheduleRuleHourly.generated.cs">
-      <AutoGen>True</AutoGen>
-      <DesignTime>True</DesignTime>
-      <DependentUpon>ScheduleRuleHourly.cshtml</DependentUpon>
-    </Compile>
     <Compile Include="Scheduler\Views\ScheduleRuleMinutely.generated.cs">
       <AutoGen>True</AutoGen>
       <DesignTime>True</DesignTime>
@@ -866,10 +881,10 @@
       <DesignTime>True</DesignTime>
       <DependentUpon>ScheduleRuleWeekDays.cshtml</DependentUpon>
     </Compile>
-    <Compile Include="Scheduler\Views\ScheduleRuleWeekly.generated.cs">
+    <Compile Include="Scheduler\Views\ScheduleRuleMonths.generated.cs">
       <AutoGen>True</AutoGen>
       <DesignTime>True</DesignTime>
-      <DependentUpon>ScheduleRuleWeekly.cshtml</DependentUpon>
+      <DependentUpon>ScheduleRuleMonths.cshtml</DependentUpon>
     </Compile>
     <Compile Include="SMS\Controllers\SMSController.cs" />
     <Compile Include="SMS\SMSClient.cs" />
@@ -898,6 +913,11 @@
       <DesignTime>True</DesignTime>
       <DependentUpon>SMSUpdatePackage.cshtml</DependentUpon>
     </Compile>
+    <Compile Include="Translation\Views\LocalizableTypeUsedNotLocalized.generated.cs">
+      <DependentUpon>LocalizableTypeUsedNotLocalized.cshtml</DependentUpon>
+      <AutoGen>True</AutoGen>
+      <DesignTime>True</DesignTime>
+    </Compile>
     <Compile Include="Translation\Views\TranslationReplacement.generated.cs">
       <DependentUpon>TranslationReplacement.cshtml</DependentUpon>
       <AutoGen>True</AutoGen>
@@ -922,21 +942,6 @@
       <DependentUpon>Sync.cshtml</DependentUpon>
       <AutoGen>True</AutoGen>
       <DesignTime>True</DesignTime>
-    </Compile>
-    <Compile Include="Translation\Views\Index.generated.cs">
-      <AutoGen>True</AutoGen>
-      <DesignTime>True</DesignTime>
-      <DependentUpon>Index.cshtml</DependentUpon>
-    </Compile>
-    <Compile Include="Translation\Views\TranslatorUserCulture.generated.cs">
-      <AutoGen>True</AutoGen>
-      <DesignTime>True</DesignTime>
-      <DependentUpon>TranslatorUserCulture.cshtml</DependentUpon>
-    </Compile>
-    <Compile Include="Translation\Views\TranslatorUser.generated.cs">
-      <AutoGen>True</AutoGen>
-      <DesignTime>True</DesignTime>
-      <DependentUpon>TranslatorUser.cshtml</DependentUpon>
     </Compile>
     <Compile Include="Translation\Views\View.generated.cs">
       <AutoGen>True</AutoGen>
@@ -982,7 +987,7 @@
       <DependentUpon>QueryOrder.cshtml</DependentUpon>
     </Compile>
     <Compile Include="Excel\ExcelClient.cs" />
-    <Compile Include="Excel\Controllers\ReportController.cs" />
+    <Compile Include="Excel\Controllers\ExcelController.cs" />
     <Compile Include="Scheduler\SchedulerClient.cs" />
     <Compile Include="Combine\CombineController.cs" />
     <Compile Include="Combine\CombineClient.cs" />
@@ -1023,32 +1028,24 @@
     <EmbeddedResource Include="Word\Scripts\Word.js">
       <DependentUpon>Word.ts</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="Maps\Scripts\SchemaMap.js">
-      <DependentUpon>SchemaMap.ts</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Maps\Scripts\MapColors.js">
-      <DependentUpon>MapColors.ts</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Cache\Scripts\CacheColors.js">
-      <DependentUpon>CacheColors.ts</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Disconnected\Scripts\DisconnectedColors.js">
-      <DependentUpon>DisconnectedColors.ts</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Isolation\Scripts\IsolationColors.js">
-      <DependentUpon>IsolationColors.ts</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="AuthAdmin\Scripts\AuthAdminColors.js">
-      <DependentUpon>AuthAdminColors.ts</DependentUpon>
-    </EmbeddedResource>
     <EmbeddedResource Include="Mailing\Scripts\AsyncEmailSender.js">
       <DependentUpon>AsyncEmailSender.ts</DependentUpon>
     </EmbeddedResource>
     <Content Include="Maps\Content\operationMap.css" />
     <Content Include="Maps\Content\schemaMap.css" />
-    <EmbeddedResource Include="Maps\Scripts\OperationMap.js">
-      <DependentUpon>OperationMap.ts</DependentUpon>
-    </EmbeddedResource>
+    <Content Include="SqlServerTypes\readme.htm" />
+    <Content Include="SqlServerTypes\x64\msvcr120.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="SqlServerTypes\x64\SqlServerSpatial140.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="SqlServerTypes\x86\msvcr120.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="SqlServerTypes\x86\SqlServerSpatial140.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <Content Include="Word\Views\_ViewStart.cshtml">
       <Generator>RazorGenerator</Generator>
       <LastGenOutput>_ViewStart.generated.cs</LastGenOutput>
@@ -1131,7 +1128,6 @@
       <Generator>RazorGenerator</Generator>
       <LastGenOutput>User.generated.cs</LastGenOutput>
     </None>
-    <TypeScriptCompile Include="AuthAdmin\Scripts\AuthAdminColors.ts" />
     <TypeScriptCompile Include="Auth\Scripts\Auth.ts" />
     <EmbeddedResource Include="Auth\Scripts\Auth.js">
       <DependentUpon>Auth.ts</DependentUpon>
@@ -1153,7 +1149,6 @@
       <DependentUpon>Cache.ts</DependentUpon>
     </EmbeddedResource>
     <Content Include="Calendar\Content\calendar.css" />
-    <TypeScriptCompile Include="Cache\Scripts\CacheColors.ts" />
     <TypeScriptCompile Include="Calendar\Scripts\calendar.ts" />
     <EmbeddedResource Include="Calendar\Scripts\calendar.js">
       <DependentUpon>calendar.ts</DependentUpon>
@@ -1209,8 +1204,6 @@
       <Generator>RazorGenerator</Generator>
       <LastGenOutput>_ViewStart.generated.cs</LastGenOutput>
     </Content>
-    <TypeScriptCompile Include="Disconnected\Scripts\DisconnectedColors.ts" />
-    <TypeScriptCompile Include="Isolation\Scripts\IsolationColors.ts" />
     <TypeScriptCompile Include="Isolation\Scripts\Isolation.ts" />
     <EmbeddedResource Include="Excel\Scripts\Excel.js">
       <DependentUpon>Excel.ts</DependentUpon>
@@ -1244,9 +1237,6 @@
       <Generator>RazorGenerator</Generator>
       <LastGenOutput>_ViewStart.generated.cs</LastGenOutput>
     </Content>
-    <TypeScriptCompile Include="Maps\Scripts\OperationMap.ts" />
-    <TypeScriptCompile Include="Maps\Scripts\SchemaMap.ts" />
-    <TypeScriptCompile Include="Maps\Scripts\MapColors.ts" />
     <TypeScriptCompile Include="Omnibox\Scripts\Omnibox.ts" />
     <TypeScriptCompile Include="Processes\Scripts\Processes.ts" />
     <TypeScriptCompile Include="Notes\Scripts\Notes.ts" />
@@ -1283,10 +1273,6 @@
     <Content Include="Dashboard\Views\SearchControlPart.cshtml">
       <Generator>RazorGenerator</Generator>
       <LastGenOutput>SearchControlPart.generated.cs</LastGenOutput>
-    </Content>
-    <Content Include="Dashboard\Views\CountSearchControlPart.cshtml">
-      <Generator>RazorGenerator</Generator>
-      <LastGenOutput>CountSearchControlPart.generated.cs</LastGenOutput>
     </Content>
     <Content Include="Profiler\Content\Profiler.css" />
     <TypeScriptCompile Include="Profiler\Scripts\Profiler.ts" />
@@ -1403,10 +1389,10 @@
       <Generator>RazorGenerator</Generator>
       <LastGenOutput>PackageOperation.generated.cs</LastGenOutput>
     </Content>
-    <EmbeddedResource Include="Disconnected\Views\DisconnectedImport.cshtml">
+    <Content Include="Disconnected\Views\DisconnectedImport.cshtml">
       <Generator>RazorGenerator</Generator>
       <LastGenOutput>DisconnectedImport.generated.cs</LastGenOutput>
-    </EmbeddedResource>
+    </Content>
     <Content Include="Disconnected\Views\DisconnectedMachine.cshtml">
       <Generator>RazorGenerator</Generator>
       <LastGenOutput>DisconnectedMachine.generated.cs</LastGenOutput>
@@ -1541,6 +1527,27 @@
       <Generator>RazorGenerator</Generator>
       <LastGenOutput>OperationMap.generated.cs</LastGenOutput>
     </Content>
+    <Content Include="Mailing\Views\SendEmailTask.cshtml">
+      <Generator>RazorGenerator</Generator>
+      <LastGenOutput>SendEmailTask.generated.cs</LastGenOutput>
+    </Content>
+    <Content Include="Excel\Views\ExcelAttachment.cshtml">
+      <Generator>RazorGenerator</Generator>
+      <LastGenOutput>ExcelAttachment.generated.cs</LastGenOutput>
+    </Content>
+    <Content Include="Omnibox\Views\OmniboxPanelPart.cshtml">
+      <Generator>RazorGenerator</Generator>
+      <LastGenOutput>OmniboxPanelPart.generated.cs</LastGenOutput>
+    </Content>
+    <Content Include="Omnibox\Views\Web.config" />
+    <Content Include="Dashboard\Views\DashboardNavbarView.cshtml">
+      <Generator>RazorGenerator</Generator>
+      <LastGenOutput>DashboardNavbarView.generated.cs</LastGenOutput>
+    </Content>
+    <Content Include="Dashboard\Views\DashboardNavbarPartView.cshtml">
+      <Generator>RazorGenerator</Generator>
+      <LastGenOutput>DashboardNavbarPartView.generated.cs</LastGenOutput>
+    </Content>
     <None Include="Profiler\Views\Times.cshtml">
       <Generator>RazorGenerator</Generator>
       <LastGenOutput>Times.generated.cs</LastGenOutput>
@@ -1578,10 +1585,6 @@
       <Generator>RazorGenerator</Generator>
       <LastGenOutput>ScheduleRuleMinutely.generated.cs</LastGenOutput>
     </Content>
-    <Content Include="Scheduler\Views\ScheduleRuleHourly.cshtml">
-      <Generator>RazorGenerator</Generator>
-      <LastGenOutput>ScheduleRuleHourly.generated.cs</LastGenOutput>
-    </Content>
     <Content Include="Scheduler\Views\SimpleTask.cshtml">
       <Generator>RazorGenerator</Generator>
       <LastGenOutput>SimpleTask.generated.cs</LastGenOutput>
@@ -1590,17 +1593,13 @@
       <Generator>RazorGenerator</Generator>
       <LastGenOutput>SchedulerPanel.generated.cs</LastGenOutput>
     </Content>
-    <None Include="Scheduler\Views\ScheduleRuleDaily.cshtml">
-      <Generator>RazorGenerator</Generator>
-      <LastGenOutput>ScheduleRuleDaily.generated.cs</LastGenOutput>
-    </None>
     <None Include="Scheduler\Views\ScheduleRuleWeekDays.cshtml">
       <Generator>RazorGenerator</Generator>
       <LastGenOutput>ScheduleRuleWeekDays.generated.cs</LastGenOutput>
     </None>
-    <None Include="Scheduler\Views\ScheduleRuleWeekly.cshtml">
+    <None Include="Scheduler\Views\ScheduleRuleMonths.cshtml">
       <Generator>RazorGenerator</Generator>
-      <LastGenOutput>ScheduleRuleWeekly.generated.cs</LastGenOutput>
+      <LastGenOutput>ScheduleRuleMonths.generated.cs</LastGenOutput>
     </None>
     <None Include="Scheduler\Views\ScheduledTask.cshtml">
       <Generator>RazorGenerator</Generator>
@@ -1700,14 +1699,6 @@
       <Generator>RazorGenerator</Generator>
       <LastGenOutput>LinkListPart.generated.cs</LastGenOutput>
     </None>
-    <None Include="Dashboard\Views\Admin\CountUserQueryElement.cshtml">
-      <Generator>RazorGenerator</Generator>
-      <LastGenOutput>CountUserQueryElement.generated.cs</LastGenOutput>
-    </None>
-    <None Include="Dashboard\Views\Admin\CountSearchControlPart.cshtml">
-      <Generator>RazorGenerator</Generator>
-      <LastGenOutput>CountSearchControlPart.generated.cs</LastGenOutput>
-    </None>
     <Content Include="Help\Content\help.css" />
     <Content Include="Help\Images\favicon.ico" />
     <Content Include="Help\Images\icon-warning.png" />
@@ -1794,14 +1785,6 @@
       <Generator>RazorGenerator</Generator>
       <LastGenOutput>_ViewStart.generated.cs</LastGenOutput>
     </Content>
-    <Content Include="Translation\Views\TranslatorUserCulture.cshtml">
-      <Generator>RazorGenerator</Generator>
-      <LastGenOutput>TranslatorUserCulture.generated.cs</LastGenOutput>
-    </Content>
-    <Content Include="Translation\Views\TranslatorUser.cshtml">
-      <Generator>RazorGenerator</Generator>
-      <LastGenOutput>TranslatorUser.generated.cs</LastGenOutput>
-    </Content>
     <Content Include="Translation\Views\View.cshtml">
       <Generator>RazorGenerator</Generator>
       <LastGenOutput>View.generated.cs</LastGenOutput>
@@ -1848,6 +1831,11 @@
       <Generator>RazorGenerator</Generator>
       <LastGenOutput>ImportUserAsset.generated.cs</LastGenOutput>
     </Content>
+    <Content Include="Translation\Views\LocalizableTypeUsedNotLocalized.cshtml">
+      <Generator>RazorGenerator</Generator>
+      <LastGenOutput>LocalizableTypeUsedNotLocalized.generated.cs</LastGenOutput>
+    </Content>
+    <Content Include="tsconfig.json" />
     <None Include="UserQueries\Views\QueryColumn.cshtml">
       <Generator>RazorGenerator</Generator>
       <LastGenOutput>QueryColumn.generated.cs</LastGenOutput>
@@ -1906,7 +1894,14 @@
     <VSToolsPath Condition="'$(VSToolsPath)' == ''">$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)</VSToolsPath>
   </PropertyGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
-  <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v10.0\WebApplications\Microsoft.WebApplication.targets" Condition="false" />
+  <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v12.0\WebApplications\Microsoft.WebApplication.targets" Condition="false" />
+  <PropertyGroup>
+    <TypeScriptTarget>ES5</TypeScriptTarget>
+    <TypeScriptRemoveComments>false</TypeScriptRemoveComments>
+    <TypeScriptSourceMap>true</TypeScriptSourceMap>
+    <TypeScriptModuleKind>AMD</TypeScriptModuleKind>
+  </PropertyGroup>
+  <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\TypeScript\Microsoft.TypeScript.targets" Condition="Exists('$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\TypeScript\Microsoft.TypeScript.targets')" />
   <Target Name="BeforeBuild">
     <ItemGroup>
       <EmbeddedResource Include="**\*.gif;**\*.png;**\*.jpg;**\*.css;**\*.ts;**\*.map" />
@@ -1915,13 +1910,6 @@
   <Target Name="MvcBuildViews" AfterTargets="AfterBuild" Condition="'$(MvcBuildViews)'=='true'">
     <AspNetCompiler VirtualPath="temp" PhysicalPath="$(WebProjectOutputDir)" />
   </Target>
-  <PropertyGroup>
-    <TypeScriptTarget>ES5</TypeScriptTarget>
-    <TypeScriptRemoveComments>false</TypeScriptRemoveComments>
-    <TypeScriptSourceMap>true</TypeScriptSourceMap>
-    <TypeScriptModuleKind>AMD</TypeScriptModuleKind>
-  </PropertyGroup>
-  <Import Project="$(VSToolsPath)\TypeScript\Microsoft.TypeScript.targets" Condition="Exists('$(VSToolsPath)\TypeScript\Microsoft.TypeScript.targets')" />
   <ProjectExtensions>
     <VisualStudio>
       <FlavorProperties GUID="{349c5851-65df-11da-9384-00065b846f21}">
@@ -1939,11 +1927,12 @@
       </FlavorProperties>
     </VisualStudio>
   </ProjectExtensions>
+  <Import Project="..\..\packages\Microsoft.TypeScript.MSBuild.2.1.5\build\Microsoft.TypeScript.MSBuild.targets" Condition="Exists('..\..\packages\Microsoft.TypeScript.MSBuild.2.1.5\build\Microsoft.TypeScript.MSBuild.targets')" />
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
     <PropertyGroup>
-      <ErrorText>This project references NuGet package(s) that are missing on this computer. Enable NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=322105. The missing file is {0}.</ErrorText>
+      <ErrorText>This project references NuGet package(s) that are missing on this computer. Use NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=322105. The missing file is {0}.</ErrorText>
     </PropertyGroup>
-    <Error Condition="!Exists('..\..\packages\Microsoft.Net.Compilers.1.0.0\build\Microsoft.Net.Compilers.props')" Text="$([System.String]::Format('$(ErrorText)', '..\..\packages\Microsoft.Net.Compilers.1.0.0\build\Microsoft.Net.Compilers.props'))" />
-    <Error Condition="!Exists('..\..\packages\Microsoft.CodeDom.Providers.DotNetCompilerPlatform.1.0.1\build\Microsoft.CodeDom.Providers.DotNetCompilerPlatform.props')" Text="$([System.String]::Format('$(ErrorText)', '..\..\packages\Microsoft.CodeDom.Providers.DotNetCompilerPlatform.1.0.1\build\Microsoft.CodeDom.Providers.DotNetCompilerPlatform.props'))" />
+    <Error Condition="!Exists('..\..\packages\Microsoft.Net.Compilers.2.3.2\build\Microsoft.Net.Compilers.props')" Text="$([System.String]::Format('$(ErrorText)', '..\..\packages\Microsoft.Net.Compilers.2.3.2\build\Microsoft.Net.Compilers.props'))" />
+    <Error Condition="!Exists('..\..\packages\Microsoft.CodeDom.Providers.DotNetCompilerPlatform.1.0.7\build\net45\Microsoft.CodeDom.Providers.DotNetCompilerPlatform.props')" Text="$([System.String]::Format('$(ErrorText)', '..\..\packages\Microsoft.CodeDom.Providers.DotNetCompilerPlatform.1.0.7\build\net45\Microsoft.CodeDom.Providers.DotNetCompilerPlatform.props'))" />
   </Target>
 </Project>

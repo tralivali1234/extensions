@@ -12,20 +12,20 @@ namespace Signum.Entities.Files
     {
         string CalculatedDirectory { get; }
 
-        string FullPhysicalPath { get; }
+        string FullPhysicalPath();
 
         FileTypeSymbol FileType { get; }
 
         void SetPrefixPair(PrefixPair prefixPair);
 
-        string Sufix { get; set; }
+        string Suffix { get; set; }
     }
 
     public interface IFile
     {
         byte[] BinaryFile { get; set; }
         string FileName { get; set; }
-        string FullWebPath { get; }
+        string FullWebPath();
     }
 
     public enum FileMessage
@@ -50,7 +50,9 @@ namespace Signum.Entities.Files
         ViewFile,
         [Description("Viewing has no default implementation for {0}")]
         ViewingHasNotDefaultImplementationFor0,
-        OnlyOneFileIsSupported
+        OnlyOneFileIsSupported,
+        [Description("drag a file here")]
+        DragAndDropHere, 
     }
 
 
@@ -64,5 +66,6 @@ namespace Signum.Entities.Files
     public class WebDownload
     {
         public string FullWebPath;
+        public string FileName;
     }
 }

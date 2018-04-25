@@ -126,13 +126,38 @@ function changeButtonState($button: JQuery, disablingMessage?: string) {
 
 function updateHtmlEditorTextArea(idTargetTextArea: string) {
     CKEDITOR.instances[idTargetTextArea].updateElement();
-    SF.setHasChanges(idTargetTextArea.get());
+    //SF.setHasChanges(idTargetTextArea.get());
 };
 
-export function initHtmlEditor(idTargetTextArea: string, culture: string) {
+export function initHtmlEditor(idTargetTextArea: string, culture: string, mobile: boolean) {
 
     CKEDITOR.config.scayt_sLang = culture.replace("-", "_");
-    CKEDITOR.replace(idTargetTextArea);
+
+    if (mobile) {
+        var toolbarMobile = [
+            //{ name: 'document', items: ['Source'] },
+            //{ name: 'clipboard', items: ['Cut', 'Copy', 'Paste', 'PasteText'] },
+            //{ name: 'editing', items: ['SelectAll', '-', 'Scayt'] },
+            //{ name: 'insert', items: ['Link', 'Unlink', 'addImage', 'Table'] },
+            //{ name: 'tools', items: ['Preview', '-', 'Maximize'] },
+            //{ name: 'styles', items: ['Font', 'FontSize'] },
+            { name: 'basicstyles', items: ['Bold', 'Italic', 'Underline', '-', 'RemoveFormat'] },
+            { name: 'colors', items: ['TextColor', 'BGColor'] },
+            { name: 'paragraph', items: ['NumberedList', 'BulletedList', '-', 'Outdent', 'Indent', '-', 'Blockquote'] },
+        ];
+
+        //var config = {};
+        var config = CKEDITOR.config;
+        config.toolbar = toolbarMobile;
+        config.extraPlugins = 'simpleuploads,autogrow';
+        config.autoGrow_onStartup = true;
+        config.autoGrow_bottomSpace = 50;
+        //CKEDITOR.instances.editor1.destroy();//destroy the existing editor
+        CKEDITOR.replace(idTargetTextArea, config);
+    }
+    else {
+        CKEDITOR.replace(idTargetTextArea);
+    }
 
     // Update origin textarea
     // Make this more elegant once http://dev.ckeditor.com/ticket/9794 is fixed.
@@ -153,7 +178,7 @@ export function initHtmlEditor(idTargetTextArea: string, culture: string) {
 
 export function initHtmlEditorMasterTemplate(idTargetTextArea: string, culture: string) {
 
-    initHtmlEditor(idTargetTextArea, culture);
+    initHtmlEditor(idTargetTextArea, culture,false);
 
     var $insertContent = $("#" + idTargetTextArea).closest(".sf-email-template-message")
         .find(".sf-master-template-insert-content");
@@ -166,7 +191,7 @@ export function initHtmlEditorMasterTemplate(idTargetTextArea: string, culture: 
 
 export function initHtmlEditorWithTokens(idTargetTextArea: string, culture: string) {
 
-    initHtmlEditor(idTargetTextArea, culture);
+    initHtmlEditor(idTargetTextArea, culture,false);
 
     var lastCursorPosition;
 
@@ -260,7 +285,6 @@ export function activateIFrame($iframe: JQuery) {
     });
 }
 
-
 export function createMailFromTemplate(options: Operations.EntityOperationOptions, event : MouseEvent, findOptions: Finder.FindOptions, url: string) {
     Finder.find(findOptions).then(entity => {
         if (entity == null)
@@ -272,7 +296,6 @@ export function createMailFromTemplate(options: Operations.EntityOperationOption
         Operations.constructFromDefault(options, event);
     });
 }
-
 
 export function removeRecipients(options: Operations.EntityOperationOptions, newsletterDeliveryFindOptions: Finder.FindOptions, url: string) {
     Finder.findMany(newsletterDeliveryFindOptions).then(entities => {
@@ -286,4 +309,28 @@ export function removeRecipients(options: Operations.EntityOperationOptions, new
     });
 }
 
+export function attachEmailReportTemplate(el: Lines.EntityLine, targetId: string, controllerUrl: string) {
 
+    function refreshImplementations(templateRI: Entities.RuntimeInfo) {
+        targetId.get().toggle(!!templateRI);
+
+        if (templateRI)
+            SF.ajaxPost({ url: controllerUrl, data: { template: templateRI.key() } }).then((types: Entities.TypeInfo[])=> {
+
+                targetId.get().toggle(!!types.length);
+
+                targetId.get().SFControl<Lines.EntityLine>().then(el2=> {
+
+                    if (el2.getRuntimeInfo() && !types.some(t=> t.name == el2.getRuntimeInfo().type))
+                        el2.setEntity(null);
+                    el2.options.types = types;
+                    el2.options.create = false;
+                    el2.options.find = true;
+                });
+            });
+    }
+
+    refreshImplementations(el.getRuntimeInfo());
+    el.entityChanged = (entity) => refreshImplementations(entity ? entity.runtimeInfo : null);
+
+}

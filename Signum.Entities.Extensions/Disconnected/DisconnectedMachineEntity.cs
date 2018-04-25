@@ -16,7 +16,7 @@ namespace Signum.Entities.Disconnected
     {
         public DateTime CreationDate { get; private set; } = TimeZoneManager.Now;
 
-        [NotNullable, SqlDbType(Size = 100), UniqueIndex]
+        [UniqueIndex]
         [StringLengthValidator(AllowNulls = false, Min = 1, Max = 100)]
         public string MachineName { get; set; }
 
@@ -103,6 +103,7 @@ namespace Signum.Entities.Disconnected
     }
 
 
+    [InTypeScript(true)]
     public enum Download
     {
         None,
@@ -111,6 +112,7 @@ namespace Signum.Entities.Disconnected
         Replace,
     }
 
+    [InTypeScript(true)]
     public enum Upload
     {
         None,

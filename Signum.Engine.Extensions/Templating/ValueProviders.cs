@@ -20,6 +20,15 @@ using System.Threading.Tasks;
 
 namespace Signum.Engine.Templating
 {
+    public interface ITemplateParser
+    {
+        Type ModelType { get; }
+        PropertyInfo ModelProperty { get; }
+        QueryDescription QueryDescription { get; }
+        ScopedDictionary<string, ValueProviderBase> Variables { get; }
+        void AddError(bool fatal, string error);
+    }
+
     public abstract class ValueProviderBase
     {
         public string Variable { get; set; }
@@ -34,66 +43,40 @@ namespace Signum.Engine.Templating
 
         public abstract void FillQueryTokens(List<QueryToken> list);
 
-        public abstract void ToString(StringBuilder sb, ScopedDictionary<string, ValueProviderBase> variables, string afterToken);
+        public abstract void ToStringInternal(StringBuilder sb, ScopedDictionary<string, ValueProviderBase> variables);
 
-        public string ToString(ScopedDictionary<string, ValueProviderBase> variables, string afterToken)
+        public string ToString(ScopedDictionary<string, ValueProviderBase> variables, string format)
         {
             StringBuilder sb = new StringBuilder();
-            ToString(sb, variables, afterToken);
+            ToStringBrackets(sb, variables, format);
             return sb.ToString();
         }
 
-        public override string ToString()
+        public void ToStringBrackets(StringBuilder sb, ScopedDictionary<string, ValueProviderBase> variables, string format)
         {
-            StringBuilder sb = new StringBuilder();
-            ToString(sb, new ScopedDictionary<string, ValueProviderBase>(null), null);
-            return sb.ToString();
+            sb.Append("[");
+
+            this.ToStringInternal(sb, variables);
+
+            if (format.HasItems())
+                sb.Append(format);
+
+            sb.Append("]");
+
+            if (Variable.HasItems())
+                sb.Append(" as " + Variable);
         }
 
-        public abstract void Synchronize(SyncronizationContext sc, string p);
+        public override string ToString() => ToString(new ScopedDictionary<string, ValueProviderBase>(null), null);
+
+        public abstract void Synchronize(SyncronizationContext sc, string remainingText);
 
         public virtual void Declare(ScopedDictionary<string, ValueProviderBase> variables)
         {
             if (Variable.HasText())
                 variables.Add(Variable, this);
         }
-
-        public bool GetCondition(TemplateParameters p, FilterOperation? operation, string valueString)
-        {
-            var obj = this.GetValue(p);
-
-            if (operation == null)
-                return ToBool(obj);
-            else
-            {
-                var type = this.Type;
-
-                Expression token = Expression.Constant(obj, type);
-
-                Expression value = Expression.Constant(FilterValueConverter.Parse(valueString, type, operation == FilterOperation.IsIn), type);
-
-                Expression newBody = QueryUtils.GetCompareExpression(operation.Value, token, value, inMemory: true);
-                var lambda = Expression.Lambda<Func<bool>>(newBody).Compile();
-
-                return lambda();
-            }
-        }
-
-
-        protected static bool ToBool(object obj)
-        {
-            if (obj == null)
-                return false;
-
-            if (obj is bool)
-                return ((bool)obj);
-
-            if (obj is string)
-                return ((string)obj) != "";
-
-            return true;
-        }
-
+        
 
         public virtual void Foreach(TemplateParameters p, Action forEachElement)
         {
@@ -111,15 +94,14 @@ namespace Signum.Engine.Templating
             }
         }
 
-        public virtual IEnumerable<object> GetFilteredRows(TemplateParameters p, FilterOperation? operation, string stringValue)
-        {
-            var collection = (IEnumerable)this.GetValue(p);
+ 
+    
 
-            return collection.Cast<object>();
-        }
-
-        public static ValueProviderBase TryParse(string type, string token, string variable, Type modelType, QueryDescription qd, ScopedDictionary<string, ValueProviderBase> variables, Action<bool, string> addError)
+        public static ValueProviderBase TryParse(string typeToken, string variable, ITemplateParser tp)
         {
+            var type = typeToken.TryBefore(":") ?? "";
+            var token = typeToken.TryAfter(":") ?? typeToken;
+
             switch (type)
             {
                 case "":
@@ -128,42 +110,43 @@ namespace Signum.Engine.Templating
                         {
                             string v = token.TryBefore('.') ?? token;
 
-                            ValueProviderBase vp;
-                            if (!variables.TryGetValue(v, out vp))
+                            if (!tp.Variables.TryGetValue(v, out ValueProviderBase vp))
                             {
-                                addError(false, "Variable '{0}' is not defined at this scope".FormatWith(v));
+                                tp.AddError(false, "Variable '{0}' is not defined at this scope".FormatWith(v));
                                 return null;
                             }
 
                             if (!(vp is TokenValueProvider))
-                                return new ContinueValueProvider(token.TryAfter('.'), vp, addError);
+                                return new ContinueValueProvider(token.TryAfter('.'), vp, tp.AddError);
                         }
 
-                        ParsedToken result = ParsedToken.TryParseToken(token, SubTokensOptions.CanElement, qd, variables, addError);
+                        ParsedToken result = ParsedToken.TryParseToken(token, SubTokensOptions.CanElement, tp.QueryDescription, tp.Variables, tp.AddError);
 
                         if (result.QueryToken != null && TranslateInstanceValueProvider.IsTranslateInstanceCanditate(result.QueryToken))
-                            return new TranslateInstanceValueProvider(result, false, addError) { Variable = variable };
+                            return new TranslateInstanceValueProvider(result, false, tp.AddError) { Variable = variable };
                         else
                             return new TokenValueProvider(result, false) { Variable = variable };
                     }
                 case "q":
                     {
-                        ParsedToken result = ParsedToken.TryParseToken(token, SubTokensOptions.CanElement, qd, variables, addError);
+                        ParsedToken result = ParsedToken.TryParseToken(token, SubTokensOptions.CanElement, tp.QueryDescription, tp.Variables, tp.AddError);
 
                         return new TokenValueProvider(result, true) { Variable = variable };
                     }
                 case "t":
                     {
-                        ParsedToken result = ParsedToken.TryParseToken(token, SubTokensOptions.CanElement, qd, variables, addError);
+                        ParsedToken result = ParsedToken.TryParseToken(token, SubTokensOptions.CanElement, tp.QueryDescription, tp.Variables, tp.AddError);
 
-                        return new TranslateInstanceValueProvider(result, true, addError) { Variable = variable };
+                        return new TranslateInstanceValueProvider(result, true, tp.AddError) { Variable = variable };
                     }
                 case "m":
-                    return new ModelValueProvider(token, modelType, addError) { Variable = variable };
+                    return new ModelValueProvider(token, tp.ModelType, tp.ModelProperty, tp.AddError) { Variable = variable };
                 case "g":
-                    return new GlobalValueProvider(token, addError) { Variable = variable };
+                    return new GlobalValueProvider(token, tp.AddError) { Variable = variable };
+                case "d":
+                    return new DateValueProvider(token, tp.AddError) { Variable = variable };
                 default:
-                    addError(false, "{0} is not a recognized value provider (q:Query, t:Translate, m:Model, g:Global or just blank)");
+                    tp.AddError(false, "{0} is not a recognized value provider (q:Query, t:Translate, m:Model, g:Global or just blank)");
                     return null;
             }
         }
@@ -173,11 +156,10 @@ namespace Signum.Engine.Templating
             if (Type == null)
                 return;
 
-            object rubish;
-            string error = FilterValueConverter.TryParse(valueString, Type, out rubish, Operation == FilterOperation.IsIn);
-            
-            if (error.HasText())
-                addError(false, "Impossible to convert '{0}' to {1}: {2}".FormatWith(valueString, Type.TypeName(), error));
+            var result = FilterValueConverter.TryParse(valueString, Type, Operation.Value.IsList(), allowSmart: true);
+
+            if (result is Result<object>.Error e)
+                addError(false, "Impossible to convert '{0}' to {1}: {2}".FormatWith(valueString, Type.TypeName(), e.ErrorText));
         }
     }
 
@@ -257,21 +239,12 @@ namespace Signum.Engine.Templating
             list.Add(ParsedToken.QueryToken);
         }
 
-        public override void ToString(StringBuilder sb, ScopedDictionary<string, ValueProviderBase> variables, string afterToken)
+        public override void ToStringInternal(StringBuilder sb, ScopedDictionary<string, ValueProviderBase> variables)
         {
-            sb.Append("[");
             if (this.IsExplicit)
                 sb.Append("q:"); 
 
             sb.Append(this.ParsedToken.ToString(variables));
-
-            if (afterToken.HasItems())
-                sb.Append(afterToken);
-
-            sb.Append("]");
-
-            if (Variable.HasItems())
-                sb.Append(" as " + Variable);
         }
 
         public override void Synchronize(SyncronizationContext sc, string remainingText)
@@ -284,37 +257,6 @@ namespace Signum.Engine.Templating
         public override Type Type
         {
             get { return ParsedToken.QueryToken?.Type; }
-        }
-
-        public override IEnumerable<object> GetFilteredRows(TemplateParameters p, FilterOperation? operation, string stringValue)
-        {
-            if (operation == null)
-            {
-                var column = p.Columns[ParsedToken.QueryToken];
-
-                var filtered = p.Rows.Where(r => ToBool(r[column])).ToList();
-
-                return filtered;
-            }
-            else
-            {
-                var type = this.Type;
-
-                object val = FilterValueConverter.Parse(stringValue, type, operation == FilterOperation.IsIn);
-
-                Expression value = Expression.Constant(val, type);
-
-                ResultColumn col = p.Columns[ParsedToken.QueryToken];
-
-                var expression = Signum.Utilities.ExpressionTrees.Linq.Expr((ResultRow rr) => rr[col]);
-
-                Expression newBody = QueryUtils.GetCompareExpression(operation.Value, Expression.Convert(expression.Body, type), value, inMemory: true);
-                var lambda = Expression.Lambda<Func<ResultRow, bool>>(newBody, expression.Parameters).Compile();
-
-                var filtered = p.Rows.Where(lambda).ToList();
-
-                return filtered;
-            }
         }
     }
 
@@ -386,21 +328,12 @@ namespace Signum.Engine.Templating
             list.Add(EntityToken);
         }
 
-        public override void ToString(StringBuilder sb, ScopedDictionary<string, ValueProviderBase> variables, string afterToken)
+        public override void ToStringInternal(StringBuilder sb, ScopedDictionary<string, ValueProviderBase> variables)
         {
-            sb.Append("[");
             if (this.IsExplicit)
                 sb.Append("t:");
 
             sb.Append(this.ParsedToken.ToString(variables));
-
-            if (afterToken.HasItems())
-                sb.Append(afterToken);
-
-            sb.Append("]");
-
-            if (Variable.HasItems())
-                sb.Append(" as " + Variable);
         }
 
         public override void Synchronize(SyncronizationContext sc, string remainingText)
@@ -430,8 +363,7 @@ namespace Signum.Engine.Templating
             {
                 string v = tokenString.TryBefore('.') ?? tokenString;
 
-                ValueProviderBase vp;
-                if (!variables.TryGetValue(v, out vp))
+                if (!variables.TryGetValue(v, out ValueProviderBase vp))
                 {
                     addError(false, "Variable '{0}' is not defined at this scope".FormatWith(v));
                     return result;
@@ -499,15 +431,15 @@ namespace Signum.Engine.Templating
         string fieldOrPropertyChain;
         List<MemberInfo> Members;
 
-        public ModelValueProvider(string fieldOrPropertyChain, Type systemEmail, Action<bool, string> addError)
+        public ModelValueProvider(string fieldOrPropertyChain, Type modelType, PropertyInfo modelProperty, Action<bool, string> addError)
         {
-            if (systemEmail == null)
+            if (modelType == null)
             {
-                addError(false, EmailTemplateMessage.SystemEmailShouldBeSetToAccessModel0.NiceToString().FormatWith(fieldOrPropertyChain));
+                addError(false, EmailTemplateMessage.ImpossibleToAccess0BecauseTheTemplateHAsNo1.NiceToString(fieldOrPropertyChain, modelProperty.NiceName()));
                 return;
             }
 
-            this.Members = ParsedModel.GetMembers(systemEmail, fieldOrPropertyChain, addError);
+            this.Members = ParsedModel.GetMembers(modelType, fieldOrPropertyChain, addError);
         }
 
         public override object GetValue(TemplateParameters p)
@@ -525,12 +457,19 @@ namespace Signum.Engine.Templating
 
         internal static object Getter(MemberInfo member, object systemEmail)
         {
-            var pi = member as PropertyInfo;
+            try
+            {
+                if (member is PropertyInfo pi)
+                    return pi.GetValue(systemEmail, null);
 
-            if (pi != null)
-                return pi.GetValue(systemEmail, null);
+                return ((FieldInfo)member).GetValue(systemEmail);
+            }
+            catch (TargetInvocationException e)
+            {
+                e.InnerException.PreserveStackTrace();
 
-            return ((FieldInfo)member).GetValue(systemEmail);
+                throw e.InnerException;
+            }
         }
 
         public override string Format
@@ -547,18 +486,13 @@ namespace Signum.Engine.Templating
         {
         }
 
-        public override void ToString(StringBuilder sb, ScopedDictionary<string, ValueProviderBase> variables, string afterToken)
+        public override void ToStringInternal(StringBuilder sb, ScopedDictionary<string, ValueProviderBase> variables)
         {
-            sb.Append("[m:");
+            sb.Append("m:");
             sb.Append(Members == null ? fieldOrPropertyChain : Members.ToString(a => a.Name, "."));
-            sb.Append(afterToken);
-            sb.Append("]");
-
-            if (Variable.HasItems())
-                sb.Append(" as " + Variable);
         }
 
-        public override void Synchronize(SyncronizationContext sc, string p)
+        public override void Synchronize(SyncronizationContext sc, string remainingText)
         {
             if (Members == null)
             {
@@ -657,23 +591,18 @@ namespace Signum.Engine.Templating
         {
         }
 
-        public override void ToString(StringBuilder sb, ScopedDictionary<string, ValueProviderBase> variables, string afterToken)
+        public override void ToStringInternal(StringBuilder sb, ScopedDictionary<string, ValueProviderBase> variables)
         {
-            sb.Append("[g:");
+            sb.Append("g:");
             sb.Append(globalKey);
             if (remainingFieldsOrProperties.HasText())
             {
                 sb.Append(".");
                 sb.Append(Members == null ? remainingFieldsOrProperties : Members.ToString(a => a.Name, "."));
             }
-            sb.Append(afterToken);
-            sb.Append("]");
-
-            if (Variable.HasItems())
-                sb.Append(" as " + Variable);
         }
 
-        public override void Synchronize(SyncronizationContext sc, string p)
+        public override void Synchronize(SyncronizationContext sc, string remainingText)
         {
             globalKey = sc.Replacements.SelectInteractive(globalKey, GlobalVariables.Keys, "Globals", sc.StringDistance) ?? globalKey;
 
@@ -687,6 +616,50 @@ namespace Signum.Engine.Templating
 
             Declare(sc.Variables);
         }
+    }
+
+    public class DateValueProvider : ValueProviderBase
+    {
+
+        string dateTimeExpression; 
+        public DateValueProvider(string dateTimeExpression, Action<bool, string> addError)
+        {
+            try
+            {
+                var obj = dateTimeExpression == null ? DateTime.Now: FilterValueConverter.Parse(dateTimeExpression, typeof(DateTime?), isList: false, allowSmart: true);
+                this.dateTimeExpression = dateTimeExpression;
+            }
+            catch (Exception e)
+            {
+                addError(false, $"Invalid expression {dateTimeExpression}: {e.Message}");
+            }
+        }
+
+        public override Type Type => typeof(DateTime?);
+
+        public override object GetValue(TemplateParameters p)
+        {
+            return dateTimeExpression == null ? DateTime.Now : FilterValueConverter.Parse(this.dateTimeExpression, typeof(DateTime?), isList: false, allowSmart: true);
+        }
+
+        public override void FillQueryTokens(List<QueryToken> list)
+        {
+        }
+
+        public override void ToStringInternal(StringBuilder sb, ScopedDictionary<string, ValueProviderBase> variables)
+        {
+            sb.Append("d:");
+            sb.Append(TemplateUtils.ScapeColon(this.dateTimeExpression));
+        }
+
+        public override void Synchronize(SyncronizationContext sc, string remainingText)
+        { 
+
+
+        }
+
+        public override string Format => "G";
+
     }
 
     public class ContinueValueProvider : ValueProviderBase
@@ -712,8 +685,7 @@ namespace Signum.Engine.Templating
 
         public override object GetValue(TemplateParameters p)
         {
-            object value;
-            if (!p.RuntimeVariables.TryGetValue(Parent.Variable, out value))
+            if (!p.RuntimeVariables.TryGetValue(Parent.Variable, out object value))
                 throw new InvalidOperationException("Variable {0} not found".FormatWith(Parent.Variable));
 
             foreach (var m in Members)
@@ -728,12 +700,20 @@ namespace Signum.Engine.Templating
 
         internal static object Getter(MemberInfo member, object value)
         {
-            var pi = member as PropertyInfo;
+            try
+            {
 
-            if (pi != null)
-                return pi.GetValue(value, null);
+                if (member is PropertyInfo pi)
+                    return pi.GetValue(value, null);
 
-            return ((FieldInfo)member).GetValue(value);
+                return ((FieldInfo)member).GetValue(value);
+            }
+            catch (TargetInvocationException e)
+            {
+                e.InnerException.PreserveStackTrace();
+
+                throw e.InnerException;
+            }
         }
 
         public override string Format
@@ -750,20 +730,14 @@ namespace Signum.Engine.Templating
         {
         }
 
-        public override void ToString(StringBuilder sb, ScopedDictionary<string, ValueProviderBase> variables, string afterToken)
+        public override void ToStringInternal(StringBuilder sb, ScopedDictionary<string, ValueProviderBase> variables)
         {
-            sb.Append("[");
             sb.Append(Parent.Variable);
             sb.Append(".");
             sb.Append(Members == null ? fieldOrPropertyChain : Members.ToString(a => a.Name, "."));
-            sb.Append(afterToken);
-            sb.Append("]");
-
-            if (Variable.HasItems())
-                sb.Append(" as " + Variable);
         }
 
-        public override void Synchronize(SyncronizationContext sc, string p)
+        public override void Synchronize(SyncronizationContext sc, string remainingText)
         {
             if (Members == null)
             {

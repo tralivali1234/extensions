@@ -239,7 +239,7 @@ namespace Signum.Web.Selenium
             return routeType.IsAssignableFrom(type);
         }
 
-        public static QueryTokenBuilderProxy QueryTokenBuilder<T>(this ILineContainer<T> lineContainer, Expression<Func<T, QueryTokenEntity>> property)
+        public static QueryTokenBuilderProxy QueryTokenBuilder<T>(this ILineContainer<T> lineContainer, Expression<Func<T, QueryTokenEmbedded>> property)
             where T : ModifiableEntity
         {
             string newPrefix;
@@ -274,7 +274,7 @@ namespace Signum.Web.Selenium
 
         public static SearchControlProxy GetSearchControl(this ILineContainer lineContainer, object queryName)
         {
-            string query = QueryUtils.GetQueryUniqueKey(queryName);
+            string query = QueryUtils.GetKey(queryName);
 
             var prefix = (string)lineContainer.Selenium.ExecuteScript("return $('div.sf-search-control[data-queryname=\"{0}\"]').data('prefix')".FormatWith(query));
 

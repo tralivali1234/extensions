@@ -27,6 +27,7 @@ using Signum.Engine.Linq;
 using System.Linq.Expressions;
 using System.IO;
 using System.Data;
+using Signum.Engine.Scheduler;
 
 namespace Signum.Engine.Cache
 {
@@ -43,6 +44,13 @@ namespace Signum.Engine.Cache
         public static bool WithSqlDependency { get; internal set; }
 
         public static bool DropStaleServices = true;
+
+        public static FluentInclude<T> WithCache<T>(this FluentInclude<T> fi)
+          where T : Entity
+        {
+            CacheLogic.TryCacheTable(fi.SchemaBuilder, typeof(T));
+            return fi;
+        }
 
         public static void AssertStarted(SchemaBuilder sb)
         {
@@ -78,13 +86,27 @@ namespace Signum.Engine.Cache
                     CacheInvalidator.ReceiveInvalidation += CacheInvalidator_ReceiveInvalidation;
                 }
 
-                sb.Schema.SchemaCompleted += Schema_SchemaCompleted;
+                sb.Schema.SchemaCompleted += () => Schema_SchemaCompleted(sb);
                 sb.Schema.BeforeDatabaseAccess += StartSqlDependencyAndEnableBrocker;
             }
         }
 
-        static void Schema_SchemaCompleted()
+        static void Schema_SchemaCompleted(SchemaBuilder sb)
         {
+            foreach (var type in VirtualMList.RegisteredVirtualMLists.Keys)
+            {
+                if (controllers.ContainsKey(type))
+                {
+                    foreach (var rType in VirtualMList.RegisteredVirtualMLists.GetOrThrow(type))
+                    {
+                        TryCacheTable(sb, rType);
+
+                        dependencies.Add(type, rType);
+                        inverseDependencies.Add(rType, type);
+                    }
+                }
+            }
+
             foreach (var cont in controllers.Values.NotNull())
             {
                 cont.BuildCachedTable();
@@ -158,13 +180,18 @@ namespace Signum.Engine.Cache
                 CacheLogic.LogWriter.WriteLine("Load ToListWithInvalidations {0} {1}".FormatWith(typeof(T).TypeName()), exceptionContext);
 
             using (new EntityCache())
+            using (var r = EntityCache.NewRetriever())
+            {
                 subConnector.ExecuteDataReaderDependency(tr.MainCommand, onChange, StartSqlDependencyAndEnableBrocker, fr =>
-                    {
-                        if (reader == null)
-                            reader = new SimpleReader(fr, EntityCache.NewRetriever());
+                {
+                    if (reader == null)
+                        reader = new SimpleReader(fr, r);
 
-                        list.Add(projector(reader));
-                    }, CommandType.Text);
+                    list.Add(projector(reader));
+                }, CommandType.Text);
+
+                r.CompleteAll();
+            }
 
             return list;
         }
@@ -247,7 +274,7 @@ namespace Signum.Engine.Cache
                     //to avoid massive logs with SqlQueryNotificationStoredProcedure
                     //http://rusanu.com/2007/11/10/when-it-rains-it-pours/
                     var staleServices = (from s in Database.View<SysServiceQueues>()
-                                         where s.activation_procedure != null && !Database.View<SysProcedures>().Any(p => "[dbo].[" + p.name + "]" == s.activation_procedure)
+                                         where s.activation_procedure != null && !Database.View<SysProcedures>().Any(p => "[" + p.Schema().name + "].[" + p.name + "]" == s.activation_procedure)
                                          select new ObjectName(new SchemaName(null, s.Schema().name), s.name)).ToList();
 
                     foreach (var s in staleServices)
@@ -255,6 +282,16 @@ namespace Signum.Engine.Cache
                         TryDropService(s.Name);
                         TryDropQueue(s);
                     }
+
+                    var oldProcedures = (from p in Database.View<SysProcedures>()
+                                         where p.name.Contains("SqlQueryNotificationStoredProcedure-") && !Database.View<SysServiceQueues>().Any(s => "[" + p.Schema().name + "].[" + p.name + "]" == s.activation_procedure)
+                                         select new ObjectName(new SchemaName(null, p.Schema().name), p.name)).ToList();
+
+                    foreach (var item in oldProcedures)
+                    {
+                        Executor.ExecuteNonQuery(new SqlPreCommandSimple($"DROP PROCEDURE {item.ToString()}"));
+                    }
+
                 }
 
                 foreach (var database in Schema.Current.DatabaseNames())
@@ -406,14 +443,12 @@ namespace Signum.Engine.Cache
                 ee.Saving += ident =>
                 {
                     if (ident.IsGraphModified)
-                    {
-                        DisableAndInvalidate(withUpdates: !ident.IsNew);
-                    }
+                        DisableAndInvalidate(withUpdates: true); //Even if new, loading the cache afterwars will Timeout
                 };
-                ee.PreUnsafeDelete += query => DisableAndInvalidate(withUpdates: false); ;
-                ee.PreUnsafeUpdate += (update, entityQuery) => DisableAndInvalidate(withUpdates: true); ;
+                ee.PreUnsafeDelete += query => { DisableAndInvalidate(withUpdates: false); return null; };
+                ee.PreUnsafeUpdate += (update, entityQuery) => { DisableAndInvalidate(withUpdates: true); return null; };
                 ee.PreUnsafeInsert += (query, constructor, entityQuery) => { DisableAndInvalidate(withUpdates: constructor.Body.Type.IsInstantiationOf(typeof(MListElement<,>))); return constructor; };
-                ee.PreUnsafeMListDelete += (mlistQuery, entityQuery) => DisableAndInvalidate(withUpdates: true);
+                ee.PreUnsafeMListDelete += (mlistQuery, entityQuery) => { DisableAndInvalidate(withUpdates: true); return null; };
                 ee.PreBulkInsert += inMListTable => DisableAndInvalidate(withUpdates: inMListTable);
             }
 
@@ -465,7 +500,7 @@ namespace Signum.Engine.Cache
 
             public override void Load()
             {
-                cachedTable.LoadAll();
+                LoadAllConnectedTypes(typeof(T));
             }
 
             public void ForceReset()
@@ -503,14 +538,21 @@ namespace Signum.Engine.Cache
 
             public void NotifyDisabled()
             {
-                if (Invalidated != null)
-                    Invalidated(this, CacheEventArgs.Disabled);
+                Invalidated?.Invoke(this, CacheEventArgs.Disabled);
             }
 
             public void NotifyInvalidated()
             {
-                if (Invalidated != null)
-                    Invalidated(this, CacheEventArgs.Invalidated);
+                Invalidated?.Invoke(this, CacheEventArgs.Invalidated);
+            }
+            
+            public override List<T> RequestByBackReference<R>(IRetriever retriever, Expression<Func<T, Lite<R>>> backReference, Lite<R> lite)
+            {
+                var dic = this.cachedTable.GetBackReferenceDictionary(backReference);
+
+                var ids = dic.TryGetC(lite.Id).EmptyIfNull();
+
+                return ids.Select(id => retriever.Complete<T>(id, e => this.Complete(e, retriever))).ToList();
             }
 
             public Type Type
@@ -525,6 +567,7 @@ namespace Signum.Engine.Cache
         static Dictionary<Type, ICacheLogicController> controllers = new Dictionary<Type, ICacheLogicController>(); //CachePack
 
         static DirectedGraph<Type> inverseDependencies = new DirectedGraph<Type>();
+        static DirectedGraph<Type> dependencies = new DirectedGraph<Type>();
 
         public static bool GloballyDisabled { get; set; }
 
@@ -556,6 +599,8 @@ namespace Signum.Engine.Cache
         internal static void DisableTypeInTransaction(Type type)
         {
             DisabledTypesDuringTransaction().Add(type);
+
+       
 
             controllers[type].NotifyDisabled();
         }
@@ -615,12 +660,14 @@ namespace Signum.Engine.Cache
                 .Where(a => !a.Value.IsEnum)
                 .Select(t => t.Key.Type).ToList();
 
+            dependencies.Add(type);
             inverseDependencies.Add(type);
 
             foreach (var rType in relatedTypes)
             {
                 TryCacheTable(sb, rType);
 
+                dependencies.Add(type, rType);
                 inverseDependencies.Add(rType, type);
             }
         }
@@ -633,6 +680,26 @@ namespace Signum.Engine.Cache
                 throw new InvalidOperationException("{0} is just semi cached".FormatWith(type.TypeName()));
 
             return controller;
+        }
+
+
+        internal static void LoadAllConnectedTypes(Type type)
+        {
+            var connected = dependencies.IndirectlyRelatedTo(type, includeInitialNode: true);
+
+            foreach (var stype in connected)
+            {
+                var controller = controllers[stype];
+                if (controller != null)
+                {
+                    if (controller.CachedTable == null)
+                        throw new InvalidOperationException($@"CacheTable for {stype.Name} is null. 
+This may be because SchemaCompleted is not yet called and you are accesing some ResetLazy in the Start method. 
+Remember that the Start could be called with an empty database!");
+                        
+                    controller.CachedTable.LoadAll();
+                }
+            }
         }
 
         internal static void NotifyInvalidateAllConnectedTypes(Type type)
@@ -660,8 +727,7 @@ namespace Signum.Engine.Cache
             if (!type.IsEntity())
                 throw new ArgumentException("type should be an Entity");
 
-            ICacheLogicController controller;
-            if (!controllers.TryGetValue(type, out controller))
+            if (!controllers.TryGetValue(type, out ICacheLogicController controller))
                 return CacheType.None;
 
             if (controller == null)
@@ -681,6 +747,8 @@ namespace Signum.Engine.Cache
             {
                 controller.ForceReset();
             }
+
+            SystemEventLogLogic.Log("CacheLogic.ForceReset");
         }
 
         public static XDocument SchemaGraph(Func<Type, bool> cacheHint)
@@ -800,7 +868,7 @@ namespace Signum.Engine.Cache
 
         internal static bool IsAssumedMassiveChangeAsInvalidation<T>()
         {
-            var asssumeAsInvalidation = CacheLogic.assumeMassiveChangesAsInvalidations.Value.TryGetS(typeof(T));
+            var asssumeAsInvalidation = CacheLogic.assumeMassiveChangesAsInvalidations.Value?.TryGetS(typeof(T));
 
             if (asssumeAsInvalidation == null)
                 throw new InvalidOperationException("Impossible to determine if the massive operation will affect the semi-cached instances of {1}. Execute CacheLogic.AssumeMassiveChangesAsInvalidations to desanbiguate.");

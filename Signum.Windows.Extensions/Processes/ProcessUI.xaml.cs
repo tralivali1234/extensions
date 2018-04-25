@@ -28,9 +28,11 @@ namespace Signum.Windows.Processes
         public ProcessUI()
         {
             InitializeComponent();
-            timer = new DispatcherTimer();
-            timer.Interval = TimeSpan.FromSeconds(.5);
-            timer.IsEnabled = false;
+            timer = new DispatcherTimer()
+            {
+                Interval = TimeSpan.FromSeconds(.5),
+                IsEnabled = false
+            };
             timer.Tick += new EventHandler(timer_Tick);
             this.DataContextChanged += new DependencyPropertyChangedEventHandler(Process_DataContextChanged);
             this.Unloaded += Process_Unloaded;
@@ -44,8 +46,7 @@ namespace Signum.Windows.Processes
 
         void timer_Tick(object sender, EventArgs e)
         {
-            ProcessEntity pe = DataContext as ProcessEntity;
-            if (pe != null && (pe.State == ProcessState.Queued || pe.State == ProcessState.Executing || pe.State == ProcessState.Suspending))
+            if (DataContext is ProcessEntity pe && (pe.State == ProcessState.Queued || pe.State == ProcessState.Executing || pe.State == ProcessState.Suspending))
             {
                 ProcessEntity npe = pe.ToLite().RetrieveAndForget();
                 RaiseEvent(new ChangeDataContextEventArgs(npe));

@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Linq;
-using System.Text;
+﻿using System.ComponentModel;
 
 namespace Signum.Entities.Authorization
 {
@@ -28,8 +24,8 @@ namespace Signum.Entities.Authorization
         ChangePasswordAspx_ConfirmNewPassword,
         [Description("New password")]
         ChangePasswordAspx_NewPassword,
-        [Description("Write your current password and the new one")]
-        ChangePasswordAspx_WriteActualPasswordAndNewOne,
+        [Description("Enter your current password and the new one")]
+        ChangePasswordAspx_EnterActualPasswordAndNewOne,
         ConfirmNewPassword,
         [Description("The email must have a value")]
         EmailMustHaveAValue,
@@ -51,8 +47,8 @@ namespace Signum.Entities.Authorization
         WeWillSendYouAnEmailWithALinkToResetYourPassword,
         IHaveForgottenMyPassword,
         IncorrectPassword,
-        [Description("Introduce your username and password")]
-        IntroduceYourUserNameAndPassword,
+        [Description("Enter your username and password")]
+        EnterYourUserNameAndPassword,
         InvalidUsernameOrPassword,
         InvalidUsername,
         InvalidPassword,
@@ -70,6 +66,7 @@ namespace Signum.Entities.Authorization
         Login,
         [Description("Logout")]
         Logout,
+        SwitchUser,
         NewPassword,
         [Description("Not allowed to save this {0} while offline")]
         NotAllowedToSaveThis0WhileOffline,
@@ -110,8 +107,8 @@ namespace Signum.Entities.Authorization
         ResetPasswordSuccess,
         Save,
         TheConfirmationCodeThatYouHaveJustSentIsInvalid,
-        [Description("The password must have between 7 and 15 characters, each of them being a number 0-9 or a letter")]
-        ThePasswordMustHaveBetween7And15CharactersEachOfThemBeingANumber09OrALetter,
+        [Description("The password must have at least 5 characters")]
+        ThePasswordMustHaveAtLeast5Characters,
         [Description("There has been an error with your request to reset your password. Please, enter your login.")]
         ThereHasBeenAnErrorWithYourRequestToResetYourPasswordPleaseEnterYourLogin,
         [Description("There's not a registered user with that email address")]
@@ -136,6 +133,7 @@ namespace Signum.Entities.Authorization
         [Description("Welcome {0}")]
         Welcome0,
         LoginWithAnotherUser,
+        TheUserIsNotLongerInTheDatabase,
     }
 
     public enum AuthEmailMessage
@@ -162,7 +160,25 @@ namespace Signum.Entities.Authorization
         Allow,
         Deny,
 
-        Overriden
-    }
+        Overriden,
+        NoRoles,
+        Filter,
+        PleaseSaveChangesFirst,
+        ResetChanges,
+        SwitchTo,
 
+        [Description("{0} (in UI)")]
+        _0InUI,
+        [Description("{0} (in DB only)")]
+        _0InDB,
+
+        [Description("Can not be modified")]
+        CanNotBeModified,
+
+        [Description("Can not be modified because is a {0}")]
+        CanNotBeModifiedBecauseIsA0,
+
+        [Description("Can not be modified because is not a {0}")]
+        CanNotBeModifiedBecauseIsNotA0,
+    }
 }

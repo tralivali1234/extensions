@@ -52,20 +52,18 @@ namespace Signum.Windows.Chart
 
         void ChartToken_DataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
         {
-            var oldColumn = e.OldValue as ChartColumnEntity;
 
-            if (oldColumn != null)
+            if (e.OldValue is ChartColumnEmbedded oldColumn)
                 oldColumn.Notified -= UpdateGroup;
 
-            var newColumn = e.NewValue as ChartColumnEntity;
 
-            if (newColumn != null)
+            if (e.NewValue is ChartColumnEmbedded newColumn)
                 newColumn.Notified += UpdateGroup;
         }
 
         private List<QueryToken> token_SubTokensEvent(QueryToken token)
         {
-            var ct = DataContext as ChartColumnEntity;
+            var ct = DataContext as ChartColumnEmbedded;
             if (ct == null)
                 return new List<QueryToken>();
 
@@ -83,8 +81,7 @@ namespace Signum.Windows.Chart
         {
             this.Loaded -= OnLoad;
 
-            if (PreLoad != null)
-                PreLoad(this, EventArgs.Empty);
+            PreLoad?.Invoke(this, EventArgs.Empty);
 
             UpdateGroup(); 
         }

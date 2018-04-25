@@ -17,6 +17,7 @@ using System.Linq.Expressions;
 using Signum.Utilities.Reflection;
 using Signum.Entities.Notes;
 using Signum.Engine.Extensions.Basics;
+using Signum.Engine.Basics;
 
 namespace Signum.Engine.Notes
 {
@@ -37,10 +38,9 @@ namespace Signum.Engine.Notes
         {
             if (sb.NotDefined(MethodInfo.GetCurrentMethod()))
             {
-                sb.Include<NoteEntity>();
-                dqm.RegisterQuery(typeof(NoteEntity), () =>
-                    from n in Database.Query<NoteEntity>()
-                    select new
+                sb.Include<NoteEntity>()
+                    .WithSave(NoteOperation.Save)
+                    .WithQuery(dqm, () => n => new
                     {
                         Entity = n,
                         n.Id,
@@ -50,37 +50,23 @@ namespace Signum.Engine.Notes
                         Text = n.Text.Etc(100),
                         n.Target
                     });
-
+                
                 new Graph<NoteEntity>.ConstructFrom<Entity>(NoteOperation.CreateNoteFromEntity)
                 {
                     Construct = (a, _) => new NoteEntity{ CreationDate = TimeZoneManager.Now, Target = a.ToLite() }
                 }.Register();
 
-                new Graph<NoteEntity>.Execute(NoteOperation.Save)
-                {
-                    AllowsNew = true,
-                    Lite = false,
-                    Execute = (a, _) => { }
-                }.Register();
-
-                dqm.RegisterQuery(typeof(NoteTypeEntity), () =>
-                    from t in Database.Query<NoteTypeEntity>()
-                    select new
+                sb.Include<NoteTypeEntity>()
+                    .WithSave(NoteTypeOperation.Save)
+                    .WithQuery(dqm, () => t => new
                     {
                         Entity = t,
                         t.Id,
                         t.Name,
                         t.Key,
                     });
-
+                
                 SemiSymbolLogic<NoteTypeEntity>.Start(sb, () => SystemNoteTypes);
-
-                new Graph<NoteTypeEntity>.Execute(NoteTypeOperation.Save)
-                {
-                    AllowsNew = true,
-                    Lite = false,
-                    Execute = (a, _) => { }
-                }.Register();
 
                 if (registerExpressionsFor != null)
                 {
@@ -115,6 +101,14 @@ namespace Signum.Engine.Notes
                 Target = (Lite<Entity>)Lite.Create(entity.EntityType, entity.Id, entity.ToString()),
                 NoteType = noteType
             }.Execute(NoteOperation.Save);
+        }
+
+        public static void RegisterUserTypeCondition(SchemaBuilder sb, TypeConditionSymbol typeCondition)
+        {
+            sb.Schema.Settings.AssertImplementedBy((NoteEntity uq) => uq.CreatedBy, typeof(UserEntity));
+
+            TypeConditionLogic.RegisterCompile<NoteEntity>(typeCondition,
+                uq => uq.CreatedBy.RefersTo(UserEntity.Current));
         }
     }
 }

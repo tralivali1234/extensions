@@ -23,7 +23,7 @@ namespace Signum.Engine.Files
     public static class FilePathLogic
     {
         static Expression<Func<FilePathEntity, WebImage>> WebImageExpression =
-            fp => new WebImage { FullWebPath = fp.FullWebPath };
+            fp => fp == null ? null: new WebImage { FullWebPath = fp.FullWebPath() };
         [ExpressionField]
         public static WebImage WebImage(this FilePathEntity fp)
         {
@@ -31,7 +31,7 @@ namespace Signum.Engine.Files
         }
 
         static Expression<Func<FilePathEntity, WebDownload>> WebDownloadExpression =
-           fp => new WebDownload { FullWebPath = fp.FullWebPath };
+           fp => new WebDownload { FullWebPath = fp.FullWebPath() };
         [ExpressionField]
         public static WebDownload WebDownload(this FilePathEntity fp)
         {
@@ -49,23 +49,20 @@ namespace Signum.Engine.Files
             {
                 FileTypeLogic.Start(sb, dqm);
 
-                sb.Include<FilePathEntity>();
-
-                sb.Schema.EntityEvents<FilePathEntity>().Retrieved += FilePathLogic_Retrieved;
-                sb.Schema.EntityEvents<FilePathEntity>().PreSaving += FilePath_PreSaving;
-                sb.Schema.EntityEvents<FilePathEntity>().PreUnsafeDelete += new PreUnsafeDeleteHandler<FilePathEntity>(FilePathLogic_PreUnsafeDelete);
-
-                dqm.RegisterQuery(typeof(FilePathEntity), () =>
-                    from p in Database.Query<FilePathEntity>()
-                    select new
+                sb.Include<FilePathEntity>()
+                    .WithQuery(dqm, () => p => new
                     {
                         Entity = p,
                         p.Id,
                         p.FileName,
                         p.FileType,
-                        p.Sufix
+                        p.Suffix
                     });
 
+                FilePathEntity.CalculatePrefixPair = CalculatePrefixPair;
+                sb.Schema.EntityEvents<FilePathEntity>().PreSaving += FilePath_PreSaving;
+                sb.Schema.EntityEvents<FilePathEntity>().PreUnsafeDelete += new PreUnsafeDeleteHandler<FilePathEntity>(FilePathLogic_PreUnsafeDelete);
+                
                 new Graph<FilePathEntity>.Execute(FilePathOperation.Save)
                 {
                     AllowsNew = true,
@@ -74,32 +71,27 @@ namespace Signum.Engine.Files
                     {
                         if (!fp.IsNew)
                         {
-
                             var ofp = fp.ToLite().Retrieve();
 
-
-                            if (fp.FileName != ofp.FileName || fp.Sufix != ofp.Sufix || fp.FullPhysicalPath != ofp.FullPhysicalPath)
+                            if (fp.FileName != ofp.FileName || fp.Suffix != ofp.Suffix)
                             {
                                 using (Transaction tr = new Transaction())
                                 {
-                                    var preSufix = ofp.Sufix.Substring(0, ofp.Sufix.Length - ofp.FileName.Length);
-                                    fp.Sufix = Path.Combine(preSufix, fp.FileName);
+                                    var preSufix = ofp.Suffix.Substring(0, ofp.Suffix.Length - ofp.FileName.Length);
+                                    fp.Suffix = Path.Combine(preSufix, fp.FileName);
                                     fp.Save();
-                                    System.IO.File.Move(ofp.FullPhysicalPath, fp.FullPhysicalPath);
+                                    fp.FileType.GetAlgorithm().MoveFile(ofp, fp);
                                     tr.Commit();
                                 }
-                            }
+                            }  
                         }
                     }
                 }.Register();
 
-                OperationLogic.SetProtectedSave<FilePathEntity>(false);
-
-                sb.AddUniqueIndex<FilePathEntity>(f => new { f.Sufix, f.FileType }); //With mixins, add AttachToUniqueIndexes to field
+                sb.AddUniqueIndex<FilePathEntity>(f => new { f.Suffix, f.FileType }); //With mixins, add AttachToUniqueIndexes to field
 
                 dqm.RegisterExpression((FilePathEntity fp) => fp.WebImage(), () => typeof(WebImage).NiceName(), "Image");
                 dqm.RegisterExpression((FilePathEntity fp) => fp.WebDownload(), () => typeof(WebDownload).NiceName(), "Download");
-
             }
         }
 
@@ -107,19 +99,16 @@ namespace Signum.Engine.Files
 
         static void FilePathLogic_Retrieved(FilePathEntity fp)
         {
-            using (new EntityCache(EntityCacheType.ForceNew))
-                fp.SetPrefixPair();
+            fp.GetPrefixPair();
         }
 
-        public static FilePathEntity SetPrefixPair(this FilePathEntity fp)
+        static PrefixPair CalculatePrefixPair(FilePathEntity fp)
         {
             using (new EntityCache(EntityCacheType.ForceNew))
-                fp.prefixPair = FileTypeLogic.FileTypes.GetOrThrow(fp.FileType).GetPrefixPair(fp);
-
-            return fp;
+               return fp.FileType.GetAlgorithm().GetPrefixPair(fp);
         }
 
-        public static void FilePathLogic_PreUnsafeDelete(IQueryable<FilePathEntity> query)
+        public static IDisposable FilePathLogic_PreUnsafeDelete(IQueryable<FilePathEntity> query)
         {
             if (!unsafeMode.Value)
             {
@@ -129,12 +118,13 @@ namespace Signum.Engine.Files
                 {
                     foreach (var gr in list.GroupBy(f => f.FileType))
                     {
-                        var alg = FileTypeLogic.FileTypes.GetOrThrow(gr.Key);
-                        if (alg.TakesOwnership)
-                            alg.DeleteFiles(gr.Cast<IFilePath>().ToList());
+                        var alg = gr.Key.GetAlgorithm();
+                        alg.DeleteFiles(gr.ToList());
                     }
                 };
             }
+
+            return null;
         }
 
         static readonly Variable<bool> unsafeMode = Statics.ThreadVariable<bool>("filePathUnsafeMode");
@@ -146,22 +136,22 @@ namespace Signum.Engine.Files
             return new Disposable(() => unsafeMode.Value = false);
         }
 
-        public static void FilePath_PreSaving(FilePathEntity fp, ref bool graphModified)
+        public static void FilePath_PreSaving(FilePathEntity fp, PreSavingContext ctx)
         {
             if (fp.IsNew && !unsafeMode.Value)
             {
-                FileTypeLogic.SaveFile(fp);
+                fp.FileType.GetAlgorithm().SaveFile(fp);
             }
         }
 
         public static byte[] GetByteArray(this FilePathEntity fp)
         {
-            return fp.BinaryFile ?? File.ReadAllBytes(fp.FullPhysicalPath);
+            return fp.BinaryFile ?? fp.FileType.GetAlgorithm().ReadAllBytes(fp);
         }
 
-        public static byte[] GetByteArray(this Lite<FilePathEntity> fp)
+        public static Stream OpenRead(this FilePathEntity fp)
         {
-            return File.ReadAllBytes(fp.InDB(f => f.FullPhysicalPath));
+            return fp.FileType.GetAlgorithm().OpenRead(fp);
         }
     }
 }

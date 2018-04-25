@@ -19,7 +19,7 @@ namespace Signum.Engine.Cache
     {
         Dictionary<ParameterExpression, Expression> replacements = new Dictionary<ParameterExpression, Expression>(); 
 
-        public static Func<PrimaryKey, string> GetToString<T>(CachedTableConstructor constructor, Expression<Func<T, string>> lambda)
+        public static Expression<Func<PrimaryKey, string>> GetToString<T>(CachedTableConstructor constructor, Expression<Func<T, string>> lambda)
         {
             Table table = (Table)constructor.table;
             
@@ -37,17 +37,15 @@ namespace Signum.Engine.Cache
             
             var result = visitor.Visit(lambda.Body);
 
-            return Expression.Lambda<Func<PrimaryKey, string>>(result, pk).Compile();
+            return Expression.Lambda<Func<PrimaryKey, string>>(result, pk);
         }
 
         protected override Expression VisitMember(MemberExpression node)
         {
             var exp = this.Visit(node.Expression);
 
-            if (exp is CachedEntityExpression)
+            if (exp is CachedEntityExpression cee)
             {
-                var cee = (CachedEntityExpression)exp;
-
                 Field field = cee.FieldEmbedded != null ? cee.FieldEmbedded.GetField(node.Member) :
                     ((Table)cee.Constructor.table).GetField(node.Member);
 
@@ -65,7 +63,7 @@ namespace Signum.Engine.Cache
 
             ConstantExpression tab = Expression.Constant(n.Constructor.cachedTable, typeof(CachedTable<>).MakeGenericType(((Table)n.Constructor.table).Type));
             
-            Expression origin = Expression.Convert(Expression.Property(Expression.Property(tab, "Rows"), "Item", n.PrimaryKey.UnNullify()), n.Constructor.tupleType);
+            Expression origin = Expression.Convert(Expression.Property(Expression.Call(tab, "GetRows", null), "Item", n.PrimaryKey.UnNullify()), n.Constructor.tupleType);
 
             var result = ExpressionReplacer.Replace(body, new Dictionary<ParameterExpression, Expression> { { n.Constructor.origin, origin } });
 
@@ -96,21 +94,16 @@ namespace Signum.Engine.Cache
                 if (field is FieldReference)
                 {
                     IColumn column = (IColumn)field;
-
-                    Expression id = CachedTableConstructor.WrapPrimaryKey(constructor.GetTupleProperty(column));
-
+                    
                     return GetEntity(isLite, column, field.FieldType.CleanType(),  constructor);
                 }
 
-                if (field is FieldImplementedBy)
+                if (field is FieldImplementedBy ib)
                 {
-                    var ib = (FieldImplementedBy)field;
                     var nullRef = Expression.Constant(null, field.FieldType);
                     var call = ib.ImplementationColumns.Aggregate((Expression)nullRef, (acum, kvp) =>
                     {
                         IColumn column = (IColumn)kvp.Value;
-
-                        Expression id = CachedTableConstructor.NewPrimaryKey(constructor.GetTupleProperty(column));
 
                         var entity = GetEntity(isLite, column, kvp.Key, constructor);
 
@@ -128,10 +121,8 @@ namespace Signum.Engine.Cache
                 }
             }
 
-            if (field is FieldEmbedded)
+            if (field is FieldEmbedded fe)
             {
-                var fe = (FieldEmbedded)field;
-
                 return new CachedEntityExpression(previousPrimaryKey, fe.FieldType, constructor, fe);
             }
 
@@ -147,7 +138,7 @@ namespace Signum.Engine.Cache
         {
             Expression id = constructor.GetTupleProperty(column);
 
-            var pk = CachedTableConstructor.WrapPrimaryKey(id.UnNullify());
+            var pk = CachedTableConstructor.WrapPrimaryKey(id);
 
             CachedTableConstructor typeConstructor = CacheLogic.GetCacheType(entityType) == CacheType.Cached ?
                 CacheLogic.GetCachedTable(entityType).Constructor :
@@ -204,7 +195,22 @@ namespace Signum.Engine.Cache
                 }
             }
 
+            if(result.NodeType == ExpressionType.Add && (result.Left.Type == typeof(string) || result.Right.Type == typeof(string)))
+            {
+                var lefto = this.Visit(ToString(result.Left));
+                var righto = this.Visit(ToString(result.Right));
+
+                return Expression.Add(lefto, righto, result.Method);
+            }
             return result;
+        }
+
+        private Expression ToString(Expression node)
+        {
+            if (node.Type == typeof(string))
+                return node;
+
+            return Expression.Call(node, miToString);
         }
 
         private Expression GetPrimaryKey(Expression exp)
@@ -212,8 +218,7 @@ namespace Signum.Engine.Cache
             if (exp is ConstantExpression && ((ConstantExpression)exp).Value == null)
                 return Expression.Constant(null, typeof(PrimaryKey?));
 
-            var cee = exp as CachedEntityExpression;
-            if (cee != null)
+            if (exp is CachedEntityExpression cee)
                 return cee.PrimaryKey;
 
             throw new InvalidOperationException("");

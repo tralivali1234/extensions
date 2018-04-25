@@ -13,13 +13,13 @@ namespace Signum.Entities.UserAssets
     [Serializable]
     public class UserAssetPreviewModel : ModelEntity
     {
-        public MList<UserAssetPreviewLine> Lines { get; set; } = new MList<UserAssetPreviewLine>();
+        public MList<UserAssetPreviewLineEmbedded> Lines { get; set; } = new MList<UserAssetPreviewLineEmbedded>();
     }
 
     [Serializable]
-    public class UserAssetPreviewLine : EmbeddedEntity
+    public class UserAssetPreviewLineEmbedded : EmbeddedEntity
     {
-        public Type Type { get; set; }
+        public TypeEntity Type { get; set; }
 
         public string Text { get; set; }
 
@@ -34,6 +34,8 @@ namespace Signum.Entities.UserAssets
         {
             get { return Action == EntityAction.Different; }
         }
+
+        public override string ToString() => $"{Type} {Action}";
     }
 
     public enum EntityAction
@@ -48,6 +50,7 @@ namespace Signum.Entities.UserAssets
         ExportToXml,
         ImportUserAssets,
         ImportPreview,
+        SelectTheXmlFileWithTheUserAssetsThatYouWantToImport,
         SelectTheEntitiesToOverride,
         SucessfullyImported,
     }
@@ -61,15 +64,21 @@ namespace Signum.Entities.UserAssets
     public interface IToXmlContext
     {
         Guid Include(IUserAssetEntity content);
+        Guid Include(Lite<IUserAssetEntity> content);
 
         string TypeToName(Lite<TypeEntity> type);
 
         string QueryToName(Lite<QueryEntity> query);
+        string PermissionToName(Lite<PermissionSymbol> symbol);
     }
 
     public interface IFromXmlContext
     {
+        QueryEntity TryGetQuery(string queryKey);
         QueryEntity GetQuery(string queryKey);
+
+        PermissionSymbol TryPermission(string permissionKey);
+
         Lite<TypeEntity> GetType(string cleanName);
 
         ChartScriptEntity ChartScript(string chartScriptName);
@@ -92,9 +101,12 @@ namespace Signum.Entities.UserAssets
 
     public static class FromXmlExtensions
     {
-        public static void Syncronize<T>(this MList<T> entities, List<XElement> xElements, Action<T, XElement> syncAction)
+        public static void Synchronize<T>(this MList<T> entities, List<XElement> xElements, Action<T, XElement> syncAction)
             where T : new()
         {
+            if (xElements == null)
+                xElements = new List<XElement>();
+            
             for (int i = 0; i < xElements.Count; i++)
             {
                 T entity;

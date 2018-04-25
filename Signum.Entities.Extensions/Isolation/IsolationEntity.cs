@@ -12,7 +12,7 @@ namespace Signum.Entities.Isolation
     [Serializable, EntityKind(EntityKind.String, EntityData.Master, IsLowPopulation = true)]
     public class IsolationEntity : Entity
     {
-        [NotNullable, SqlDbType(Size = 100), UniqueIndex]
+        [UniqueIndex]
         [StringLengthValidator(AllowNulls = false, Min = 3, Max = 100)]
         public string Name { get; set; }
 
@@ -30,7 +30,6 @@ namespace Signum.Entities.Isolation
             set { DefaultVariable.Value = value; }
         }
 
-        public static readonly ThreadVariable<Tuple<Lite<IsolationEntity>>> CurrentThreadVariable = Statics.ThreadVariable<Tuple<Lite<IsolationEntity>>>("CurrentIsolation");
 
         public static IDisposable Override(Lite<IsolationEntity> isolation)
         {
@@ -49,12 +48,15 @@ namespace Signum.Entities.Isolation
             return UnsafeOverride(isolation);
         }
 
+        //null: no override
+        //Tuple<T>(null): override to null
+        public static readonly ThreadVariable<Tuple<Lite<IsolationEntity>>> CurrentThreadVariable = Statics.ThreadVariable<Tuple<Lite<IsolationEntity>>>("CurrentIsolation");
         public static IDisposable Disable()
         {
             return UnsafeOverride(null);
         }
 
-        static IDisposable UnsafeOverride(Lite<IsolationEntity> isolation)
+        public static IDisposable UnsafeOverride(Lite<IsolationEntity> isolation)
         {
             var old = CurrentThreadVariable.Value;
 

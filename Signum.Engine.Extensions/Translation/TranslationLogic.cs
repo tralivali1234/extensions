@@ -19,68 +19,57 @@ using Signum.Utilities;
 using System.Xml.Linq;
 using System.IO;
 using Signum.Utilities.ExpressionTrees;
+using System.Collections.Concurrent;
 
 namespace Signum.Engine.Translation
 {
     public static class TranslationLogic
     {
-        static Expression<Func<IUserEntity, TranslatorUserEntity>> TranslatorUserExpression =
-             user => Database.Query<TranslatorUserEntity>().SingleOrDefault(a => a.User.RefersTo(user));
-        [ExpressionField]
-        public static TranslatorUserEntity TranslatorUser(this IUserEntity entity)
-        {
-            return TranslatorUserExpression.Evaluate(entity);
-        }
+        public static ConcurrentDictionary<Lite<RoleEntity>, ConcurrentDictionary<CultureInfo, ConcurrentDictionary<Type, TypeOccurrentes>>> NonLocalized =
+         new ConcurrentDictionary<Lite<RoleEntity>, ConcurrentDictionary<CultureInfo, ConcurrentDictionary<Type, TypeOccurrentes>>>();
 
-  
-        public static void Start(SchemaBuilder sb, DynamicQueryManager dqm)
+
+
+        public static void Start(SchemaBuilder sb, DynamicQueryManager dqm, bool countLocalizationHits)
         {
             if (sb.NotDefined(MethodInfo.GetCurrentMethod()))
             {
                 CultureInfoLogic.AssertStarted(sb);
-
-                sb.Include<TranslatorUserEntity>();
-
-                dqm.RegisterQuery(typeof(TranslatorUserEntity), () =>
-                    from e in Database.Query<TranslatorUserEntity>()
-                    select new
-                    {
-                        Entity = e,
-                        e.Id,
-                        e.User,
-                        Cultures = e.Cultures.Count,
-                    });
-
-
+                
                 PermissionAuthLogic.RegisterTypes(typeof(TranslationPermission));
-
-                dqm.RegisterExpression((IUserEntity e) => e.TranslatorUser(), () => typeof(TranslatorUserEntity).NiceName());
-
-                new Graph<TranslatorUserEntity>.Execute(TranslatorUserOperation.Save)
-                {
-                    AllowsNew = true,
-                    Lite = false,
-                    Execute = (e, _) => { }
-                }.Register();
-
-                new Graph<TranslatorUserEntity>.Delete(TranslatorUserOperation.Delete)
-                {
-                    Delete = (e, _) => { e.Delete(); }
-                }.Register();
+                
+                if (countLocalizationHits)
+                    DescriptionManager.NotLocalizedMemeber += DescriptionManager_NotLocalizedMemeber;
             }
+        }
+
+        private static void DescriptionManager_NotLocalizedMemeber(CultureInfo ci, Type type, MemberInfo mi)
+        {
+            if (UserEntity.Current == null)
+                return;
+            
+            var typeOccurrences = NonLocalized.GetOrAdd(UserEntity.Current.Role).GetOrAdd(ci).GetOrAdd(mi?.ReflectedType ?? type);
+
+            if (mi == null)
+                typeOccurrences.Ocurrences++;
+            else
+                typeOccurrences.Members.AddOrUpdate(mi, 1, (id, count) => count + 1);
+        }
+        
+
+        public static long GetCountNotLocalizedMemebers(Lite<RoleEntity> role, CultureInfo ci, MemberInfo mi)
+        {
+            return NonLocalized.GetOrAdd(role).GetOrAdd(ci).GetOrThrow(mi.ReflectedType).Members.GetOrAdd(mi, 0);
+        }
+
+        public static long GetCountNotLocalizedMemebers(Lite<RoleEntity> role, CultureInfo ci, Type type)
+        {
+            return NonLocalized.GetOrAdd(role).GetOrAdd(ci).GetOrThrow(type).TotalCount;          
         }
 
         public static List<CultureInfo> CurrentCultureInfos(CultureInfo defaultCulture)
         {
             var cultures = CultureInfoLogic.ApplicationCultures;
-
-            if (Schema.Current.Tables.ContainsKey(typeof(TranslatorUserEntity)))
-            {
-                TranslatorUserEntity tr = UserEntity.Current.TranslatorUser();
-
-                if (tr != null)
-                    cultures = cultures.Where(ci => ci.Name == defaultCulture.Name || tr.Cultures.Any(tc => tc.Culture.ToCultureInfo() == ci));
-            }
 
             return cultures.OrderByDescending(a => a.Name == defaultCulture.Name).ThenBy(a => a.Name).ToList();
         }
@@ -94,7 +83,7 @@ namespace Signum.Engine.Translation
                                         where opts != DescriptionOptions.None
                                         select t.Name).ToHashSet();
 
-            Dictionary<string, string> memory = new Dictionary<string,string>();
+            Dictionary<string, string> memory = new Dictionary<string, string>();
 
 
             foreach (var fileName in Directory.EnumerateFiles(directoryName, "{0}.*.xml".FormatWith(assemblyName)))
@@ -143,12 +132,46 @@ namespace Signum.Engine.Translation
             }
 
             var toDelete = oldNames.Except(newNames);
-            if(answers != null)
+            if (answers != null)
                 toDelete = toDelete.Except(answers.Keys);
 
             memory.SetRange(toDelete.Select(n => KVP.Create(n, (string)null)));
 
             return result;
         }
+
+        public static void CopyTranslations()
+        {
+            var currentDirectory = Directory.GetCurrentDirectory();
+
+            var rootDir = currentDirectory.Before(@".Load\bin");
+            var appName = rootDir.AfterLast(@"\");
+            rootDir = rootDir.BeforeLast(@"\");
+
+            var reactDir = new DirectoryInfo($@"{rootDir}\{appName}.React\Translations");
+
+            foreach (var fi in reactDir.GetFiles("*.xml"))
+            {
+                var targetDir =
+                    fi.Name.StartsWith(appName + ".Entities") ? $@"{rootDir}\{appName}.Entities\Translations" :
+                    fi.Name.StartsWith("Signum.Entities.Extensions") ? $@"{rootDir}\Extensions\Signum.Entities.Extensions\Translations" :
+                    fi.Name.StartsWith("Signum.Entities") ? $@"{rootDir}\Framework\Signum.Entities\Translations" :
+                    fi.Name.StartsWith("Signum.Utilities") ? $@"{rootDir}\Framework\Signum.Utilities\Translations" :
+                    throw new InvalidOperationException("Unexpected file with name " + fi.Name);
+
+                var targetPath = Path.Combine(targetDir, fi.Name);
+                Console.WriteLine(targetPath);
+                File.Copy(fi.FullName, targetPath, overwrite: true);
+            }
+        }
+    }
+
+
+    public class TypeOccurrentes
+    {
+        public long Ocurrences;
+        public ConcurrentDictionary<MemberInfo, long> Members = new ConcurrentDictionary<MemberInfo, long>();
+
+        public long TotalCount => Ocurrences + Members.Values.Sum();
     }
 }

@@ -31,7 +31,7 @@ namespace Signum.Engine.UserAssets
                 if (Replacements.AutoReplacement == null)
                     return null;
 
-                Replacements.Selection? sel = Replacements.AutoReplacement(str, null);
+                Replacements.Selection? sel = Replacements.AutoReplacement(new Replacements.AutoReplacementContext { ReplacementKey = "QueryToken", OldValue = str, NewValues = null });
 
                 if (sel == null || sel.Value.NewValue == null)
                     return null;
@@ -94,7 +94,7 @@ namespace Signum.Engine.UserAssets
 
                     if (Replacements.AutoReplacement != null)
                     {
-                        Replacements.Selection? sel = Replacements.AutoReplacement(part, result.SubTokens(qd, options).Select(a => a.Key).ToList());
+                        Replacements.Selection? sel = Replacements.AutoReplacement(new Replacements.AutoReplacementContext { ReplacementKey= "QueryToken", OldValue = part, NewValues = result.SubTokens(qd, options).Select(a => a.Key).ToList() });
 
                         if (sel != null && sel.Value.NewValue != null)
                         {
@@ -145,7 +145,7 @@ namespace Signum.Engine.UserAssets
 
         static string QueryKey(object tokenList)
         {
-            return "tokens-Query-" + QueryUtils.GetCleanName(tokenList);
+            return "tokens-Query-" + QueryUtils.GetKey(tokenList);
         }
 
         static string TypeKey(Type type)
@@ -155,10 +155,9 @@ namespace Signum.Engine.UserAssets
 
         public static FixTokenResult FixValue(Replacements replacements, Type type, ref string valueString, bool allowRemoveToken, bool isList)
         {
-            object val;
-            string error = FilterValueConverter.TryParse(valueString, type, out val, isList);
+            var res = FilterValueConverter.TryParse(valueString, type, isList, allowSmart: true);
 
-            if (error == null)
+            if (res is Result<object>.Success)
                 return FixTokenResult.Nothing;
 
             if (isList && valueString.Contains('|'))
@@ -201,7 +200,7 @@ namespace Signum.Engine.UserAssets
 
             if (Replacements.AutoReplacement != null)
             {
-                Replacements.Selection? sel = Replacements.AutoReplacement(valueString, null);
+                Replacements.Selection? sel = Replacements.AutoReplacement(new Replacements.AutoReplacementContext { ReplacementKey = "FixValue", OldValue = valueString, NewValues = null });
 
                 if (sel != null && sel.Value.NewValue != null)
                 {
@@ -244,7 +243,7 @@ namespace Signum.Engine.UserAssets
             {
                 if (Replacements.AutoReplacement != null)
                 {
-                    Replacements.Selection? sel = Replacements.AutoReplacement(type, null);
+                    Replacements.Selection? sel = Replacements.AutoReplacement(new Replacements.AutoReplacementContext { ReplacementKey = "FixValue.Type", OldValue = type, NewValues = null });
 
                     if (sel != null && sel.Value.NewValue != null)
                         return sel.Value.NewValue;
@@ -285,8 +284,7 @@ namespace Signum.Engine.UserAssets
                     if (answer == "n")
                         return null;
 
-                    int option = 0;
-                    if (int.TryParse(answer, out option))
+                    if (int.TryParse(answer, out int option))
                     {
                         return list[option];
                     }
@@ -296,7 +294,7 @@ namespace Signum.Engine.UserAssets
             });
         }
 
-        public static FixTokenResult FixToken(Replacements replacements, ref QueryTokenEntity token, QueryDescription qd, SubTokensOptions options, string remainingText, bool allowRemoveToken, bool allowReCreate)
+        public static FixTokenResult FixToken(Replacements replacements, ref QueryTokenEmbedded token, QueryDescription qd, SubTokensOptions options, string remainingText, bool allowRemoveToken, bool allowReCreate)
         {
             SafeConsole.WriteColor(token.ParseException == null ? ConsoleColor.Gray : ConsoleColor.Red, "  " + token.TokenString);
             Console.WriteLine(" " + remainingText);
@@ -304,11 +302,10 @@ namespace Signum.Engine.UserAssets
             if (token.ParseException == null)
                 return FixTokenResult.Nothing;
 
-            QueryToken resultToken;
-            FixTokenResult result = FixToken(replacements, token.TokenString, out resultToken, qd, options, remainingText, allowRemoveToken, allowReCreate);
+            FixTokenResult result = FixToken(replacements, token.TokenString, out QueryToken resultToken, qd, options, remainingText, allowRemoveToken, allowReCreate);
 
             if (result == FixTokenResult.Fix)
-                token = new QueryTokenEntity(resultToken);
+                token = new QueryTokenEmbedded(resultToken);
 
             return result;
         }
@@ -317,8 +314,7 @@ namespace Signum.Engine.UserAssets
         {
             string[] parts = original.Split('.');
 
-            QueryToken current;
-            if (TryParseRemember(replacements, original, qd, options, out current))
+            if (TryParseRemember(replacements, original, qd, options, out QueryToken current))
             {
                 if (current.FullKey() != original)
                 {
@@ -333,7 +329,7 @@ namespace Signum.Engine.UserAssets
 
             while (true)
             {
-                var result = SelectInteractive(ref current, qd, options, allowRemoveToken, allowReGenerate);
+                var result = SelectInteractive(ref current, qd, options, remainingText, allowRemoveToken, allowReGenerate);
                 switch (result)
                 {
                     case UserAssetTokenAction.DeleteEntity:
@@ -374,7 +370,7 @@ namespace Signum.Engine.UserAssets
             }
         }
 
-        static UserAssetTokenAction? SelectInteractive(ref QueryToken token, QueryDescription qd, SubTokensOptions options, bool allowRemoveToken, bool allowReGenerate)
+        static UserAssetTokenAction? SelectInteractive(ref QueryToken token, QueryDescription qd, SubTokensOptions options, string remainingText, bool allowRemoveToken, bool allowReGenerate)
         {
             var top = Console.CursorTop;
 
@@ -383,11 +379,14 @@ namespace Signum.Engine.UserAssets
                 if (Console.Out == null)
                     throw new InvalidOperationException("Impossible to synchronize without interactive Console");
 
-                var subTokens = token.SubTokens(qd, options).OrderBy(a => a.Parent != null).ThenBy(a => a.Key).ToList();
+                var subTokens = token.SubTokens(qd, options).OrderBy(a => a.Parent != null).ThenByDescending(a=>a.Priority).ThenBy(a => a.Key).ToList();
 
                 int startingIndex = 0;
 
-                SafeConsole.WriteLineColor(ConsoleColor.Cyan, "  " + token?.FullKey());
+                SafeConsole.WriteColor(ConsoleColor.Cyan, "  " + token?.FullKey());
+                if (remainingText.HasText())
+                    Console.Write(" " + remainingText);
+                Console.WriteLine();
 
                 bool isRoot = token == null;
 
@@ -458,8 +457,7 @@ namespace Signum.Engine.UserAssets
                         }
                     }
 
-                    int option = 0;
-                    if (int.TryParse(answer, out option))
+                    if (int.TryParse(answer, out int option))
                     {
                         token = subTokens[option];
                         return null;

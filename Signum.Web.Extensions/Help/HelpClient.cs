@@ -60,12 +60,11 @@ namespace Signum.Web.Help
                     new EntitySettings<QueryHelpEntity>(),
                     new EntitySettings<AppendixHelpEntity>(),
                     new EntitySettings<NamespaceHelpEntity>(),
-                    new EmbeddedEntitySettings<PropertyRouteHelpEntity>(),
-                    new EntitySettings<OperationHelpEntity>(),
-                    new EmbeddedEntitySettings<QueryColumnHelpEntity>(),
+                    new EmbeddedEntitySettings<PropertyRouteHelpEmbedded>(),
+                    new EmbeddedEntitySettings<QueryColumnHelpEmbedded>(),
                 });
 
-                Navigator.EmbeddedEntitySettings<PropertyRouteHelpEntity>().MappingDefault.AsEntityMapping()
+                Navigator.EmbeddedEntitySettings<PropertyRouteHelpEmbedded>().MappingDefault.AsEntityMapping()
                     .SetProperty(a => a.Property, ctx =>
                     {
                         var type = ctx.FindParent<EntityHelpEntity>().Value.Type.ToType();
@@ -122,7 +121,7 @@ namespace Signum.Web.Help
 
                 var jsType = new
                 {
-                    QueryName = QueryUtils.GetQueryUniqueKey(query.QueryName),
+                    QueryName = QueryUtils.GetKey(query.QueryName),
                     Info = query.Info,
                     Columns = query.Columns,
                 };

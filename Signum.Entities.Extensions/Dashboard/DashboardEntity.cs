@@ -15,6 +15,7 @@ using Signum.Entities.UserAssets;
 using System.Xml.Linq;
 using Signum.Entities.Authorization;
 using Signum.Utilities.ExpressionTrees;
+using Signum.Entities;
 
 namespace Signum.Entities.Dashboard
 {
@@ -43,18 +44,24 @@ namespace Signum.Entities.Dashboard
 
         public int? DashboardPriority { get; set; }
 
-        [Unit("s"), NumberIsValidator(Entities.ComparisonType.GreaterThan, 1)]
+        [Unit("s"), NumberIsValidator(Entities.ComparisonType.GreaterThanOrEqualTo, 10)]
         public int? AutoRefreshPeriod { get; set; }
 
-        [StringLengthValidator(AllowNulls = false, Min = 2)]
+        [StringLengthValidator(AllowNulls = false, Min = 2, Max = 200)]
         public string DisplayName { get; set; }
 
-        [ValidateChildProperty, NotifyCollectionChanged, NotifyChildProperty, NotNullable]
+        public bool CombineSimilarRows { get; set; } = true;
+
+        [NotifyCollectionChanged, NotifyChildProperty, NotNullValidator]
         [NoRepeatValidator]
-        public MList<PanelPartEntity> Parts { get; set; } = new MList<PanelPartEntity>();
+        public MList<PanelPartEmbedded> Parts { get; set; } = new MList<PanelPartEmbedded>();
 
         [UniqueIndex]
         public Guid Guid { get; set; } = Guid.NewGuid();
+
+        public bool ForNavbar { get; set; }
+
+        public string Key { get; set; }
 
         static Expression<Func<DashboardEntity, IPartEntity, bool>> ContainsContentExpression =
             (cp, content) => cp.Parts.Any(p => p.Content.Is(content));
@@ -66,10 +73,8 @@ namespace Signum.Entities.Dashboard
 
         protected override string ChildPropertyValidation(ModifiableEntity sender, PropertyInfo pi)
         {
-            if (sender is PanelPartEntity)
+            if (sender is PanelPartEmbedded part)
             {
-                PanelPartEntity part = (PanelPartEntity)sender;
-
                 if (pi.Name == nameof(part.StartColumn))
                 {
                     if (part.StartColumn + part.Columns > 12)
@@ -112,7 +117,7 @@ namespace Signum.Entities.Dashboard
         bool invalidating = false;
         protected override void ChildPropertyChanged(object sender, PropertyChangedEventArgs e)
         {
-            if (!invalidating && sender is PanelPartEntity && (e.PropertyName == "Row" || e.PropertyName == "Column"))
+            if (!invalidating && sender is PanelPartEmbedded && (e.PropertyName == "Row" || e.PropertyName == "Column"))
             {
                 invalidating = true;
                 foreach (var pp in Parts)
@@ -138,6 +143,11 @@ namespace Signum.Entities.Dashboard
                 DashboardPriority = DashboardPriority,
                 Parts = Parts.Select(p => p.Clone()).ToMList(),
                 Owner = Owner,
+                EntityType = this.EntityType,
+                EmbeddedInEntity = this.EmbeddedInEntity,
+                AutoRefreshPeriod = this.AutoRefreshPeriod,
+                ForNavbar = this.ForNavbar,
+                Key = this.Key
             };
         }
 
@@ -150,6 +160,7 @@ namespace Signum.Entities.Dashboard
                 Owner == null ? null : new XAttribute("Owner", Owner.Key()),
                 DashboardPriority == null ? null : new XAttribute("DashboardPriority", DashboardPriority.Value.ToString()),
                 EmbeddedInEntity == null ? null : new XAttribute("EmbeddedInEntity", EmbeddedInEntity.Value.ToString()),
+                new XAttribute("CombineSimilarRows", CombineSimilarRows),
                 new XElement("Parts", Parts.Select(p => p.ToXml(ctx))));
         }
 
@@ -161,7 +172,8 @@ namespace Signum.Entities.Dashboard
             Owner = element.Attribute("Owner")?.Let(a => Lite.Parse<Entity>(a.Value));
             DashboardPriority = element.Attribute("DashboardPriority")?.Let(a => int.Parse(a.Value));
             EmbeddedInEntity = element.Attribute("EmbeddedInEntity")?.Let(a => a.Value.ToEnum<DashboardEmbedededInEntity>());
-            Parts.Syncronize(element.Element("Parts").Elements().ToList(), (pp, x) => pp.FromXml(x, ctx));
+            CombineSimilarRows = element.Attribute("CombineSimilarRows")?.Let(a => bool.Parse(a.Value)) ?? false;
+            Parts.Synchronize(element.Element("Parts").Elements().ToList(), (pp, x) => pp.FromXml(x, ctx));
         }
 
         protected override string PropertyValidation(PropertyInfo pi)
@@ -198,13 +210,9 @@ namespace Signum.Entities.Dashboard
     {
         CreateNewPart,
 
-
         [Description("Title must be specified for {0}")]
         DashboardDN_TitleMustBeSpecifiedFor0,
-        [Description("Counter list")]
-        CountSearchControlPartEntity,
-        [Description("Counter")]
-        CountUserQueryElement,
+
         Preview,
         [Description("{0} is {1} (instead of {2}) in {3}")]
         _0Is1InstedOf2In3,

@@ -110,17 +110,17 @@ namespace Signum.Web.Files
 
         public FileResult DownloadEmbedded(Lite<FileTypeSymbol> lite, string suffix, string fileName)
         {
-            var virtualFile = new EmbeddedFilePathEntity(lite.Retrieve())
+            var virtualFile = new FilePathEmbedded(lite.Retrieve())
             {
-                Sufix = suffix,
+                Suffix = suffix,
                 FileName = fileName
             };
 
             var pair = FileTypeLogic.FileTypes.GetOrThrow(lite.Retrieve()).GetPrefixPair(virtualFile);
 
-            var fullPhyisicalPath = Path.Combine(pair.PhysicalPrefix, suffix);
+            var fullPhysicalPath = Path.Combine(pair.PhysicalPrefix, suffix);
 
-            return new FilePathResult(fullPhyisicalPath, MimeType.FromFileName(fullPhyisicalPath)) { FileDownloadName = fileName };
+            return new FilePathResult(fullPhysicalPath, MimeMapping.GetMimeMapping(fullPhysicalPath)) { FileDownloadName = fileName };
         }
     }
 }

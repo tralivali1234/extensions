@@ -32,7 +32,7 @@ namespace Signum.Web.Translation
 
 
         /// <param name="copyTranslationsToRootFolder">avoids Web Application restart when translations change</param>
-        public static void Start(ITranslator translator, bool translatorUser, bool translationReplacement, bool instanceTranslator, bool copyNewTranslationsToRootFolder = true)
+        public static void Start(ITranslator translator, bool translationReplacement, bool instanceTranslator, bool copyNewTranslationsToRootFolder = true)
         {
             if (Navigator.Manager.NotDefined(MethodInfo.GetCurrentMethod()))
             {
@@ -41,15 +41,6 @@ namespace Signum.Web.Translation
                 Translator = translator;
 
                 Navigator.RegisterArea(typeof(TranslationClient));
-
-                if (translatorUser)
-                {
-                    Navigator.AddSettings(new List<EntitySettings>
-                    {
-                        new EntitySettings<TranslatorUserEntity>{ PartialViewName = t=>ViewPrefix.FormatWith("TranslatorUser")},
-                        new EmbeddedEntitySettings<TranslatorUserCultureEntity>{ PartialViewName = t=>ViewPrefix.FormatWith("TranslatorUserCulture")},
-                    });
-                }
 
                 if (translationReplacement)
                 {
@@ -63,7 +54,11 @@ namespace Signum.Web.Translation
 
                 SpecialOmniboxProvider.Register(new SpecialOmniboxAction("TranslateCode",
                     () => TranslationPermission.TranslateCode.IsAuthorized(),
-                    uh => uh.Action((TranslationController tc) => tc.Index())));
+                    uh => uh.Action((TranslationController tc) => tc.Index(null))));
+
+                SpecialOmniboxProvider.Register(new SpecialOmniboxAction("LocalizableTypeUsedNotLocalized",
+                   () => TranslationPermission.TranslateCode.IsAuthorized(),
+                   uh => uh.Action((TranslationController tc) => tc.LocalizableTypeUsedNotLocalized(null))));
 
                 if (instanceTranslator)
                 {
@@ -71,6 +66,7 @@ namespace Signum.Web.Translation
                         () => TranslationPermission.TranslateInstances.IsAuthorized(),
                         uh => uh.Action((TranslatedInstanceController tic) => tic.Index())));
                 }
+
 
                 if (copyNewTranslationsToRootFolder)
                 {
@@ -174,7 +170,7 @@ namespace Signum.Web.Translation
                     var color =
                         gr.Key == StringDistance.DiffAction.Added ? "#72F272" :
                         gr.Key == StringDistance.DiffAction.Removed ? "#FF8B8B" :
-                        new InvalidOperationException().Throw<string>();
+                        throw new InvalidOperationException();
 
                     sb.Add(new HtmlTag("span").Attr("style", "background:" + color).SetInnerText(text));
                 }

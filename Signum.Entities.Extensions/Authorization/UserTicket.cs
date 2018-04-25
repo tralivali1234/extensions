@@ -19,25 +19,23 @@ namespace Signum.Entities.Authorization
         [NotNullValidator]
         public Lite<UserEntity> User { get; set; }
 
-        [NotNullable, SqlDbType(Size = 38)]
         [StringLengthValidator(AllowNulls = false, Min = 36, Max = 36)]
         public string Ticket { get; set; }
 
         public DateTime ConnectionDate { get; set; }
 
-        [NotNullable, SqlDbType(Size = 100)]
-        public string Device { get; set; }
+                public string Device { get; set; }
 
         public string StringTicket()
         {
             return "{0}|{1}".FormatWith(User.Id, Ticket);
         }
 
-        public static Tuple<PrimaryKey, string> ParseTicket(string ticket)
+        public static (PrimaryKey userId, string ticket) ParseTicket(string ticket)
         {
             Match m = Regex.Match(ticket, @"^(?<id>.*)\|(?<ticket>.*)$");
             if (!m.Success) throw new FormatException("The content of the ticket has an invalid format");
-            return new Tuple<PrimaryKey, string>(PrimaryKey.Parse(m.Groups["id"].Value, typeof(UserEntity)), m.Groups["ticket"].Value);
+            return (userId: PrimaryKey.Parse(m.Groups["id"].Value, typeof(UserEntity)), ticket: m.Groups["ticket"].Value);
         }
     }
 }

@@ -13,7 +13,7 @@ namespace Signum.Entities.Authorization
     [Serializable, EntityKind(EntityKind.Shared, EntityData.Master)]
     public class RoleEntity : Entity
     {
-        [NotNullable, SqlDbType(Size = 100), UniqueIndex]
+        [UniqueIndex]
         [StringLengthValidator(AllowNulls = false, Min = 2, Max = 100)]
         public string Name { get; set; }
 
@@ -28,7 +28,7 @@ namespace Signum.Entities.Authorization
             }
         }
 
-        [NotNullable, NotifyCollectionChanged]
+        [NotNullValidator, NotifyCollectionChanged]
         public MList<Lite<RoleEntity>> Roles { get; set; } = new MList<Lite<RoleEntity>>();
 
         protected override void ChildCollectionChanged(object sender, NotifyCollectionChangedEventArgs args)
@@ -44,7 +44,7 @@ namespace Signum.Entities.Authorization
                 if (Roles.Any())
                     return null;
 
-                return "No Roles -> " + (mergeStrategy == MergeStrategy.Union ? AuthAdminMessage.Nothing : AuthAdminMessage.Everything).NiceToString();
+                return AuthAdminMessage.NoRoles.NiceToString()  + "-> " + (mergeStrategy == MergeStrategy.Union ? AuthAdminMessage.Nothing : AuthAdminMessage.Everything).NiceToString();
             }
         }
 
@@ -55,7 +55,7 @@ namespace Signum.Entities.Authorization
             return ToStringExpression.Evaluate(this);
         }
 
-        public static RoleEntity Current
+        public static Lite<RoleEntity> Current
         {
             get
             {
@@ -84,21 +84,5 @@ namespace Signum.Entities.Authorization
     {
         public static ExecuteSymbol<RoleEntity> Save;
         public static DeleteSymbol<RoleEntity> Delete;
-    }
-
-    [Serializable, EntityKind(EntityKind.System, EntityData.Master), TicksColumn(false)]
-    public class LastAuthRulesImportEntity : Entity
-    {
-        [UniqueIndex, FieldWithoutProperty]
-        string uniqueKey = "Unique";
-
-        public DateTime Date { get; set; }
-
-        static Expression<Func<LastAuthRulesImportEntity, string>> ToStringExpression = e => e.uniqueKey;
-        [ExpressionField]
-        public override string ToString()
-        {
-            return ToStringExpression.Evaluate(this);
-        }
     }
 }

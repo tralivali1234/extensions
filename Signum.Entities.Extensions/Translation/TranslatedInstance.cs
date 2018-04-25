@@ -11,7 +11,6 @@ namespace Signum.Entities.Translation
     [Serializable, EntityKind(EntityKind.System, EntityData.Master)]
     public class TranslatedInstanceEntity : Entity
     {
-        [NotNullable]
         [NotNullValidator]
         public CultureInfoEntity Culture { get; set; }
 
@@ -19,17 +18,14 @@ namespace Signum.Entities.Translation
         [NotNullValidator]
         public Lite<Entity> Instance { get; set; }
 
-        [NotNullable]
         [NotNullValidator]
         public PropertyRouteEntity PropertyRoute { get; set; }
 
         public string RowId { get; set; }
 
-        [NotNullable, SqlDbType(Size = int.MaxValue)]
         [StringLengthValidator(AllowNulls = false, MultiLine = true)]
         public string TranslatedText { get; set; }
 
-        [NotNullable, SqlDbType(Size = int.MaxValue)]
         [StringLengthValidator(AllowNulls = false, MultiLine = true)]
         public string OriginalText { get; set; }
 
@@ -56,12 +52,12 @@ namespace Signum.Entities.Translation
     [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
     public sealed class TranslateFieldAttribute : Attribute
     {
-        public TraducibleRouteType TraducibleRouteType = TraducibleRouteType.Text;
+        public TranslateableRouteType TranslatableRouteType = TranslateableRouteType.Text;
 
 
     }
 
-    public enum TraducibleRouteType
+    public enum TranslateableRouteType
     {
         Text,
         Html

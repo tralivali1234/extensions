@@ -4,6 +4,9 @@
 @using Signum.Utilities
 @using Signum.Web.Translation.Controllers
 @using Signum.Entities.Translation
+@using Signum.Engine.Translation
+@using Signum.Entities.Authorization
+@using Signum.Entities
 @{
     CultureInfo culture = ViewBag.Culture;
     CultureInfo defaultCulture = ViewBag.DefaultCulture;
@@ -64,6 +67,7 @@ else
 
                     bool hasMembers = defaultLocType.Options.IsSet(DescriptionOptions.Members);
 
+        
                     <thead>
                         <tr>
                             <th class="leftCell">@TranslationMessage.Type.NiceToString()</th>
@@ -145,11 +149,11 @@ else
                             <tr>
                                 <th class="leftCell">
                                     @TranslationMessage.Member.NiceToString()
-                            </th>
-                            <th colspan="4">
-                                @(key)
-                        </th>
-                    </tr>
+                                </th>
+                                <th colspan="4">
+                                    @(key)
+                                </th>
+                            </tr>
 
                             foreach (var locType in Model.Values.Select(la => la.Types[defaultLocType.Type]).Where(lt => editCulture(lt.Assembly.Culture) || lt.Members.ContainsKey(key)))
                             {

@@ -14,24 +14,20 @@ namespace Signum.Entities.Help
     [Serializable, EntityKind(EntityKind.Main, EntityData.Master)]
     public class EntityHelpEntity : Entity
     {
-        [NotNullable]
         [NotNullValidator]
         public TypeEntity Type { get; set; }
 
-        [NotNullable]
         [NotNullValidator]
         public CultureInfoEntity Culture { get; set; }
 
-        [SqlDbType(Size = int.MaxValue)]
 		[StringLengthValidator(AllowNulls = true, Min = 3, MultiLine = true)]
         public string Description { get; set; }
 
-        [NotNullable]
         [NotNullValidator, NoRepeatValidator]
-        public MList<PropertyRouteHelpEntity> Properties { get; set; } = new MList<PropertyRouteHelpEntity>();
+        public MList<PropertyRouteHelpEmbedded> Properties { get; set; } = new MList<PropertyRouteHelpEmbedded>();
 
-        [Ignore]
-        public MList<OperationHelpEntity> Operations { get; set; } = new MList<OperationHelpEntity>();
+        [NotNullValidator, NoRepeatValidator]
+        public MList<OperationHelpEmbedded> Operations { get; set; } = new MList<OperationHelpEmbedded>();
 
         [Ignore]
         public MList<QueryHelpEntity> Queries { get; set; } = new MList<QueryHelpEntity>();
@@ -64,13 +60,11 @@ namespace Signum.Entities.Help
     }
 
     [Serializable]
-    public class PropertyRouteHelpEntity : EmbeddedEntity
+    public class PropertyRouteHelpEmbedded : EmbeddedEntity
     {
-        [NotNullable]
         [NotNullValidator]
         public PropertyRouteEntity Property { get; set; }
 
-        [NotNullable, SqlDbType(Size = int.MaxValue)]
 		[StringLengthValidator(AllowNulls = false, Min = 3, MultiLine = true)]
         public string Description { get; set; }
 
@@ -80,5 +74,19 @@ namespace Signum.Entities.Help
         }
     }
 
+    [Serializable]
+    public class OperationHelpEmbedded : EmbeddedEntity
+    {
+        [NotNullValidator]
+        public OperationSymbol Operation { get; set; }
+
+        [StringLengthValidator(AllowNulls = false, Min = 3, MultiLine = true)]
+        public string Description { get; set; }
+
+        public override string ToString()
+        {
+            return this.Operation?.ToString();
+        }
+    }
 
 }

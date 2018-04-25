@@ -87,7 +87,7 @@ namespace Signum.Engine.Help
 
             Before = clean.TryBeforeLast('.');
 
-            Description = entity == null ? null : entity.Description;
+            Description = entity?.Description;
             Entity = entity ?? new NamespaceHelpEntity
             {
                 Culture = this.Culture.ToCultureInfoEntity(),
@@ -134,15 +134,12 @@ namespace Signum.Engine.Help
             Info = HelpGenerator.GetEntityHelp(type);
             
             Properties = PropertyRoute.GenerateRoutes(type)
-                        .ToDictionary(
-                            pp => pp,
-                            pp => new PropertyHelp(pp, HelpGenerator.GetPropertyHelp(pp)));
+                        .ToDictionary(pp => pp, pp => new PropertyHelp(pp));
 
+            Operations = OperationLogic.TypeOperations(type)
+                        .ToDictionary(op => op.OperationSymbol, op => new OperationHelp(op.OperationSymbol, type));
 
-            var allOperations = HelpLogic.CachedOperationsHelp();
-
-            Operations = OperationLogic.GetAllOperationInfos(type).Select(oi=>allOperations.GetOrThrow(oi.OperationSymbol)).ToDictionary(a=>a.OperationSymbol);
-
+         
             var allQueries = HelpLogic.CachedQueriesHelp();
 
             Queries =  HelpLogic.TypeToQuery.Value.TryGetC(this.Type).EmptyIfNull().Select(a=>allQueries.GetOrThrow(a)).ToDictionary(qh => qh.QueryName);
@@ -176,14 +173,21 @@ namespace Signum.Engine.Help
                 entity.Properties.AddRange(
                    PropertyRouteLogic.RetrieveOrGenerateProperties(this.Type.ToTypeEntity())
                    .Except(entity.Properties.Select(a => a.Property))
-                   .Select(pr => new PropertyRouteHelpEntity
+                   .Select(pr => new PropertyRouteHelpEmbedded
                    {
                        Property = pr,
                        Description = null,
                    }));
 
-                entity.Operations.AddRange(this.Operations.Values.Select(o => o.Entity.Value).ToList());
-
+                entity.Operations.AddRange(
+                   OperationLogic.TypeOperations(this.Type).Select(a=>a.OperationSymbol)
+                   .Except(entity.Operations.Select(a => a.Operation))
+                   .Select(pr => new OperationHelpEmbedded
+                   {
+                       Operation = pr,
+                       Description = null,
+                   }));
+                
                 entity.Queries.AddRange(this.Queries.Values.Select(a => a.Entity.Value).ToList());
 
                 return entity;
@@ -204,13 +208,13 @@ namespace Signum.Engine.Help
 
     public class PropertyHelp : BaseHelp
     {
-        public PropertyHelp(PropertyRoute propertyRoute, string info)
+        public PropertyHelp(PropertyRoute propertyRoute)
         {
             if(propertyRoute.PropertyRouteType != PropertyRouteType.FieldOrProperty)
                 throw new ArgumentException("propertyRoute should be of type Property"); 
 
             this.PropertyRoute = propertyRoute;
-            this.Info = info;
+            this.Info = HelpGenerator.GetPropertyHelp(propertyRoute);
         }
 
         public readonly string Info;
@@ -231,44 +235,22 @@ namespace Signum.Engine.Help
 
     public class OperationHelp : BaseHelp
     {
-        public OperationHelp(OperationSymbol operationSymbol, CultureInfo ci, OperationHelpEntity entity)
-        {
-            this.OperationSymbol = operationSymbol;
-            this.Culture = ci;
-
-            this.Info = HelpGenerator.GetOperationHelp(operationSymbol);
-
-            if (entity != null)
-            {
-                HasEntity = true;
-
-                UserDescription = entity.Description;
-            }
-
-            Entity = new Lazy<OperationHelpEntity>(() => HelpLogic.GlobalContext(() =>
-            {
-                if (entity == null)
-                    entity = new OperationHelpEntity
-                    {
-                        Culture = this.Culture.ToCultureInfoEntity(),
-                        Operation = this.OperationSymbol,
-                    };
-
-                return entity;
-            }));
-
-        }
-
-        public readonly CultureInfo Culture;
         public readonly OperationSymbol OperationSymbol;
-        public readonly bool HasEntity;
-        public readonly Lazy<OperationHelpEntity> Entity;
+        public readonly Type Type;
         public readonly string Info;
         public string UserDescription;
 
+        public OperationHelp(OperationSymbol operationSymbol, Type type)
+        {
+            this.OperationSymbol = operationSymbol;
+            this.Type = type;
+
+            this.Info = HelpGenerator.GetOperationHelp(type, operationSymbol);
+        }
+        
         public override string IsAllowed()
         {
-            return OperationLogic.OperationAllowed(OperationSymbol, inUserInterface: true) ? null :
+            return OperationLogic.OperationAllowed(OperationSymbol, this.Type, inUserInterface: true) ? null :
                 OperationMessage.Operation01IsNotAuthorized.NiceToString(this.OperationSymbol.NiceToString(), this.OperationSymbol.Key);
         }
 
@@ -322,7 +304,7 @@ namespace Signum.Engine.Help
                 entity.Columns.AddRange(
                      DynamicQueryManager.Current.GetQuery(this.QueryName).Core.Value.StaticColumns.Select(a => a.Name)
                      .Except(entity.Columns.Select(a => a.ColumnName))
-                     .Select(pr => new QueryColumnHelpEntity
+                     .Select(pr => new QueryColumnHelpEmbedded
                      {
                          ColumnName = pr,
                          Description = null,
@@ -334,13 +316,13 @@ namespace Signum.Engine.Help
 
         public override string ToString()
         {
-            return "Query " + QueryUtils.GetQueryUniqueKey(this.QueryName);
+            return "Query " + QueryUtils.GetKey(this.QueryName);
         }
 
         public override string IsAllowed()
         {
-            return DynamicQueryManager.Current.QueryAllowed(this.QueryName) ? null :
-                "Access to query {0} not allowed".FormatWith(QueryUtils.GetQueryUniqueKey(this.QueryName)); 
+            return DynamicQueryManager.Current.QueryAllowed(this.QueryName, false) ? null :
+                "Access to query {0} not allowed".FormatWith(QueryUtils.GetKey(this.QueryName)); 
         }
     }
 

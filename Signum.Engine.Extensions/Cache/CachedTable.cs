@@ -50,7 +50,8 @@ namespace Signum.Engine.Cache
                     throw new InvalidOperationException("Invalid query for SqlDependency") { Data = { { "query", query.PlainSql() } } };
 
                 if (args.Info == SqlNotificationInfo.PreviousFire)
-                    throw new InvalidOperationException("The same transaction that loaded the data is invalidating it!") { Data = { { "query", query.PlainSql() } } };
+                    throw new InvalidOperationException("The same transaction that loaded the data is invalidating it! Table: {0} SubTables: {1} ".
+                        FormatWith(Table, subTables?.Select(e=>e.Table).ToString(","))) { Data = { { "query", query.PlainSql() } } };
 
                 if (CacheLogic.LogWriter != null)
                     CacheLogic.LogWriter.WriteLine("Change {0}".FormatWith(GetType().TypeName())); 
@@ -147,15 +148,19 @@ namespace Signum.Engine.Cache
     class CachedTable<T> : CachedTableBase where T : Entity
     {
         Table table;
-
-        public Dictionary<PrimaryKey, object> Rows { get { return rows.Value; } }
-
+        
         ResetLazy<Dictionary<PrimaryKey, object>> rows;
+
+        public Dictionary<PrimaryKey, object> GetRows()
+        {
+            return rows.Value;
+        }
 
         Func<FieldReader, object> rowReader;
         Action<object, IRetriever, T> completer;
         Expression<Action<object, IRetriever, T>> completerExpression;
         Func<object, PrimaryKey> idGetter;
+        Expression<Func<PrimaryKey, string>> toStrGetterExpression;
         Func<PrimaryKey, string> toStrGetter;
 
         public override IColumn ParentColumn { get; set; }
@@ -173,11 +178,11 @@ namespace Signum.Engine.Cache
             using (ObjectName.OverrideOptions(new ObjectNameOptions { AvoidDatabaseName = true }))
             {
                 string select = "SELECT\r\n{0}\r\nFROM {1} {2}\r\n".FormatWith(
-                    Table.Columns.Values.ToString(c => ctr.currentAlias.Name.SqlEscape() + "." + c.Name.SqlEscape(), ",\r\n"),
+                    Table.Columns.Values.ToString(c => ctr.currentAlias + "." + c.Name.SqlEscape(), ",\r\n"),
                     table.Name.ToString(),
-                    ctr.currentAlias.Name.SqlEscape());
+                    ctr.currentAlias.ToString());
 
-                ctr.remainingJoins = lastPartialJoin == null ? null : lastPartialJoin + ctr.currentAlias.Name.SqlEscape() + ".Id\r\n" + remainingJoins;
+                ctr.remainingJoins = lastPartialJoin == null ? null : lastPartialJoin + ctr.currentAlias + ".Id\r\n" + remainingJoins;
 
                 if (ctr.remainingJoins != null)
                     select += ctr.remainingJoins;
@@ -240,7 +245,8 @@ namespace Signum.Engine.Cache
 
         public override void SchemaCompleted()
         {
-            toStrGetter = ToStringExpressionVisitor.GetToString<T>(this.Constructor, s => s.ToString());
+            toStrGetterExpression = ToStringExpressionVisitor.GetToString<T>(this.Constructor, s => s.ToString());
+            toStrGetter = toStrGetterExpression.Compile();
             if (this.subTables != null)
                 foreach (var item in this.subTables)
                     item.SchemaCompleted();
@@ -253,6 +259,13 @@ namespace Signum.Engine.Cache
                 CacheLogic.LogWriter.WriteLine((rows.IsValueCreated ? "RESET {0}" : "Reset {0}").FormatWith(GetType().TypeName()));
 
             rows.Reset();
+            if (this.BackReferenceDictionaries != null)
+            {
+                foreach (var item in this.BackReferenceDictionaries.Values)
+                {
+                    item.Reset();
+                }
+            }
         }
 
         protected override void Load()
@@ -268,7 +281,7 @@ namespace Signum.Engine.Cache
         public object GetRow(PrimaryKey id)
         {
             Interlocked.Increment(ref hits);
-            var origin = Rows.TryGetC(id);
+            var origin = this.GetRows().TryGetC(id);
             if (origin == null)
                 throw new EntityNotFoundException(typeof(T), id);
 
@@ -278,7 +291,7 @@ namespace Signum.Engine.Cache
         public string TryGetToString(PrimaryKey id)
         {
             Interlocked.Increment(ref hits);
-            var origin = Rows.TryGetC(id);
+            var origin = this.GetRows().TryGetC(id);
             if (origin == null)
                 return null;
 
@@ -289,17 +302,25 @@ namespace Signum.Engine.Cache
         {
             Interlocked.Increment(ref hits);
 
-            var origin = Rows.TryGetC(entity.Id);
+            var origin = this.GetRows().TryGetC(entity.Id);
             if (origin == null)
                 throw new EntityNotFoundException(typeof(T), entity.Id);
 
             completer(origin, retriever, entity);
+
+            var additional = Schema.Current.GetAdditionalBindings(typeof(T));
+
+            if(additional != null)
+            {
+                foreach (var ab in additional)
+                    ab.SetInMemory(entity, retriever);
+            }
         }
 
         internal IEnumerable<PrimaryKey> GetAllIds()
         {
             Interlocked.Increment(ref hits);
-            return Rows.Keys;
+            return this.GetRows().Keys;
         }
 
         public override int? Count
@@ -320,7 +341,69 @@ namespace Signum.Engine.Cache
 
         internal override bool Contains(PrimaryKey primaryKey)
         {
-            return this.rows.Value.ContainsKey(primaryKey);
+            return this.GetRows().ContainsKey(primaryKey);
+        }
+
+        ConcurrentDictionary<LambdaExpression, ResetLazy<Dictionary<PrimaryKey, List<PrimaryKey>>>> BackReferenceDictionaries = 
+            new ConcurrentDictionary<LambdaExpression, ResetLazy<Dictionary<PrimaryKey, List<PrimaryKey>>>>(ExpressionComparer.GetComparer<LambdaExpression>(false));
+
+        internal Dictionary<PrimaryKey, List<PrimaryKey>> GetBackReferenceDictionary<R>(Expression<Func<T, Lite<R>>> backReference)
+            where R : Entity
+        {
+            var lazy = BackReferenceDictionaries.GetOrCreate(backReference, () =>
+            {
+                var column = GetColumn(Reflector.GetMemberList(backReference));
+
+                var idGetter = this.Constructor.GetPrimaryKeyGetter(table.PrimaryKey);
+
+                if (column.Nullable.ToBool())
+                {
+                    var backReferenceGetter = this.Constructor.GetPrimaryKeyNullableGetter(column);
+
+                    return new ResetLazy<Dictionary<PrimaryKey, List<PrimaryKey>>>(() =>
+                    {
+                        return this.rows.Value.Values
+                        .Where(a => backReferenceGetter(a) != null)
+                        .GroupToDictionary(a => backReferenceGetter(a).Value, a => idGetter(a));
+                    }, LazyThreadSafetyMode.ExecutionAndPublication);
+                }
+                else
+                {
+                    var backReferenceGetter = this.Constructor.GetPrimaryKeyGetter(column);
+                    return new ResetLazy<Dictionary<PrimaryKey, List<PrimaryKey>>>(() =>
+                    {
+                        return this.rows.Value.Values
+                        .GroupToDictionary(a => backReferenceGetter(a), a => idGetter(a));
+                    }, LazyThreadSafetyMode.ExecutionAndPublication);
+                }
+            });
+
+            return lazy.Value;
+        }
+
+        private IColumn GetColumn(MemberInfo[] members) 
+        {
+            IFieldFinder current = (Table)this.Table;
+            Field field = null;
+
+            for (int i = 0; i < members.Length - 1; i++)
+            {
+                if (current == null)
+                    throw new InvalidOperationException("{0} does not implement {1}".FormatWith(field, typeof(IFieldFinder).Name));
+
+                field = current.GetField(members[i]);
+
+                current = field as IFieldFinder;
+            }
+
+            var lastMember = members[members.Length - 1];
+
+            if (lastMember is Type t)
+                return ((FieldImplementedBy)field).ImplementationColumns.GetOrThrow(t);
+            else if (current != null)
+                return (IColumn)current.GetField(lastMember);
+            else
+                throw new InvalidOperationException("Unexpected");
         }
     }
 
@@ -336,8 +419,8 @@ namespace Signum.Engine.Cache
         static ParameterExpression result = Expression.Parameter(typeof(T));
 
         Func<FieldReader, object> rowReader;
-        Expression<Func<object, IRetriever, MList<T>.RowIdValue>> activatorExpression;
-        Func<object, IRetriever, MList<T>.RowIdValue> activator;
+        Expression<Func<object, IRetriever, MList<T>.RowIdElement>> activatorExpression;
+        Func<object, IRetriever, MList<T>.RowIdElement> activator;
         Func<object, PrimaryKey> parentIdGetter;
         Func<object, PrimaryKey> rowIdGetter;
 
@@ -352,11 +435,11 @@ namespace Signum.Engine.Cache
             using (ObjectName.OverrideOptions(new ObjectNameOptions { AvoidDatabaseName = true }))
             {
                 string select = "SELECT\r\n{0}\r\nFROM {1} {2}\r\n".FormatWith(
-                    ctr.table.Columns.Values.ToString(c => ctr.currentAlias.Name.SqlEscape() + "." + c.Name.SqlEscape(), ",\r\n"),
+                    ctr.table.Columns.Values.ToString(c => ctr.currentAlias + "." + c.Name.SqlEscape(), ",\r\n"),
                     table.Name.ToString(),
-                    ctr.currentAlias.Name.SqlEscape());
+                    ctr.currentAlias.ToString());
 
-                ctr.remainingJoins = lastPartialJoin + ctr.currentAlias.Name.SqlEscape() + "." + table.BackReference.Name.SqlEscape() + "\r\n" + remainingJoins;
+                ctr.remainingJoins = lastPartialJoin + ctr.currentAlias + "." + table.BackReference.Name.SqlEscape() + "\r\n" + remainingJoins;
 
                 query = new SqlPreCommandSimple(select);
             }
@@ -368,21 +451,21 @@ namespace Signum.Engine.Cache
 
             //Completer
             {
-                List<Expression> instructions = new List<Expression>();
-
-                instructions.Add(Expression.Assign(ctr.origin, Expression.Convert(CachedTableConstructor.originObject, ctr.tupleType)));
-                instructions.Add(Expression.Assign(result, ctr.MaterializeField(table.Field)));
-
-                var ci = typeof(MList<T>.RowIdValue).GetConstructor(new []{typeof(T), typeof(PrimaryKey), typeof(int?)});
+                List<Expression> instructions = new List<Expression>
+                {
+                    Expression.Assign(ctr.origin, Expression.Convert(CachedTableConstructor.originObject, ctr.tupleType)),
+                    Expression.Assign(result, ctr.MaterializeField(table.Field))
+                };
+                var ci = typeof(MList<T>.RowIdElement).GetConstructor(new []{typeof(T), typeof(PrimaryKey), typeof(int?)});
 
                 var order = table.Order == null ? Expression.Constant(null, typeof(int?)) : 
                      ctr.GetTupleProperty(table.Order).Nullify();
 
                 instructions.Add(Expression.New(ci, result, CachedTableConstructor.NewPrimaryKey(ctr.GetTupleProperty(table.PrimaryKey)), order));
 
-                var block = Expression.Block(typeof(MList<T>.RowIdValue), new[] { ctr.origin, result }, instructions);
+                var block = Expression.Block(typeof(MList<T>.RowIdElement), new[] { ctr.origin, result }, instructions);
 
-                activatorExpression = Expression.Lambda<Func<object, IRetriever, MList<T>.RowIdValue>>(block, CachedTableConstructor.originObject, CachedTableConstructor.retriever);
+                activatorExpression = Expression.Lambda<Func<object, IRetriever, MList<T>.RowIdElement>>(block, CachedTableConstructor.originObject, CachedTableConstructor.retriever);
 
                 activator = activatorExpression.Compile();
 
@@ -533,11 +616,11 @@ namespace Signum.Engine.Cache
             using (ObjectName.OverrideOptions(new ObjectNameOptions { AvoidDatabaseName = true }))
             {
                 string select = "SELECT {0}\r\nFROM {1} {2}\r\n".FormatWith(
-                    columns.ToString(c => currentAlias.Name.SqlEscape() + "." + c.Name.SqlEscape(), ", "),
+                    columns.ToString(c => currentAlias + "." + c.Name.SqlEscape(), ", "),
                     table.Name.ToString(),
-                    currentAlias.Name.SqlEscape());
+                    currentAlias.ToString());
 
-                select += this.lastPartialJoin + currentAlias.Name.SqlEscape() + "." + table.PrimaryKey.Name.SqlEscape() + "\r\n" + this.remainingJoins;
+                select += this.lastPartialJoin + currentAlias + "." + table.PrimaryKey.Name.SqlEscape() + "\r\n" + this.remainingJoins;
 
                 query = new SqlPreCommandSimple(select);
             }
@@ -608,7 +691,7 @@ namespace Signum.Engine.Cache
         {
             Interlocked.Increment(ref hits);
 
-            return retriever.ModifiablePostRetrieving((LiteImp<T>)Lite.Create<T>(id,toStrings==null?null: toStrings.Value[id]));
+            return retriever.ModifiablePostRetrieving((LiteImp<T>)Lite.Create<T>(id,toStrings?.Value[id]));
         }
 
         public override int? Count
@@ -724,7 +807,7 @@ namespace Signum.Engine.Cache
                 }
             };
             //ee.PreUnsafeDelete += query => DisableAndInvalidate();
-            ee.PreUnsafeUpdate += (update, entityQuery) => DisableAndInvalidateMassive();
+            ee.PreUnsafeUpdate += (update, entityQuery) => { DisableAndInvalidateMassive(); return null; };
             ee.PreUnsafeInsert += (query, constructor, entityQuery) =>
             {
                 if (constructor.Body.Type.IsInstantiationOf(typeof(MListElement<,>)))
@@ -732,7 +815,7 @@ namespace Signum.Engine.Cache
 
                 return constructor;
             };
-            ee.PreUnsafeMListDelete += (mlistQuery, entityQuery) => DisableAndInvalidateMassive();
+            ee.PreUnsafeMListDelete += (mlistQuery, entityQuery) => { DisableAndInvalidateMassive(); return null; };
             ee.PreBulkInsert += inMListTable =>
             {
                 if (inMListTable)

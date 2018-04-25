@@ -11,6 +11,8 @@
     <Parameter Name="LabelsMargin" Type="Number" ValueDefinition="100" />
     <Parameter Name="NumberOpacity" Type="Number" ValueDefinition="0.8" />
     <Parameter Name="NumberColor" Type="String" ValueDefinition="white" />
+    <Parameter Name="ColorScheme" Type="Enum" ValueDefinition="category10|accent|dark2|paired|pastel1|pastel2|set1|set2|set3|BrBG[K]|PRGn[K]|PiYG[K]|PuOr[K]|RdBu[K]|RdGy[K]|RdYlBu[K]|RdYlGn[K]|Spectral[K]|Blues[K]|Greys[K]|Oranges[K]|Purples[K]|Reds[K]|BuGn[K]|BuPu[K]|OrRd[K]|PuBuGn[K]|PuBu[K]|PuRd[K]|RdPu[K]|YlGnBu[K]|YlGn[K]|YlOrBr[K]|YlOrRd[K]" />
+    <Parameter Name="ColorSchemeSteps" Type="Enum" ValueDefinition="3|4|5|6|7|8|9|10|11" />
   </Parameters>
   <Icon FileName="columns.png"><![CDATA[iVBORw0KGgoAAAANSUhEUgAAACgAAAAoCAYAAACM/rhtAAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAd5JREFUeNrsmL9KA0EQxudErEXwGawlndgpiI8gkkewEh/Cwpcwhb1dCsFYaZVSBO3sBEvN3e3MuLN/klPvLifxbhdxYJmkWX58833DcgkzQ8y1BJHXP+CvAPaPB9Eacbmti88vx3x9+whIBIjkOgO5/0QMu9sbcHS4lQQBHN09wf5OD0hvCaUI0lxBmimYpAreU+k5DG/uBTCMB8mtL9ZKefXkKLQKSm+y4loDZBIAC0oO0sDp34psb7KCW1VQFEJyB3nmR3eCKiiqTdUrhMSO2Page5ALo/XKFf0nqgYFJK4OhwcOqyBVh8PvwYUX9evwgLOXce0FK+ubsLZ3kZQrWB4OdOALA749j2C1d1J7wcPVqQYsD0lVODAGDzJzZTjQjb91QCZVAwiV4fArqFVAZu0hxjjfgxZO1SoY9sGqARlznYQ0PkCjGls4xsgAve8YMwMqPRrAqe8ETo/XqEd5RAp637E7FFFIvvqO1cQqGMOaKfWdgImiUShY8J3x3BS2ff81U7DgOwuadTLaRoDmTUn5N9+ZsccAqMRqOJmNtCPf/WzEzndgkozQdc1RkO2+c77rcrSNANkrKD4MADcXkHxIAsFJJfI0j+3z2+Csn3wCjLn+PwH/ecAPAQYAxTJXxEeMT4QAAAAASUVORK5CYII=]]></Icon>
   <Script><![CDATA[function DrawChart(chart, data){
@@ -42,9 +44,9 @@
   //yRule.debugY(chart);
   
   
-  var x = d3.scale.ordinal()
-      .domain($.map(data.rows, function (e) { return e.c0; }))
-      .rangeBands([0, xRule.size('content')]);
+  var x = d3.scaleBand()
+      .domain(data.rows.map(function (e) { return e.c0; }))
+      .range([0, xRule.size('content')]);
   
   var y = scaleFor(data.columns.c1, data.rows.map(function(r){return r.c1;}), 0, yRule.size('content'), data.parameters["Scale"]);
   
@@ -83,30 +85,29 @@
     .attr('dominant-baseline', 'middle')
     .text(data.columns.c1.title);
   
-  
-  var color = d3.scale.category20().domain( $.map(data.rows, function (v) { return v.c0; }));
-  
+  var color = d3.scaleOrdinal(ChartUtils.getColorScheme(data.parameters["ColorScheme"], data.parameters["ColorSchemeSteps"])).domain( data.rows.map(function (v) { return v.c0; }));
+
   
   //PAINT CHART
   chart.append('svg:g').attr('class', 'shape').attr('transform', translate(xRule.start('content'), yRule.end('content')))
     .enterData(data.rows, 'rect', 'shape')
     .attr('y', function (v) { return -y(v.c1); })
     .attr('height', function (v) { return y(v.c1); })
-    .attr('width', x.rangeBand)
+    .attr('width', x.bandwidth)
     .attr('x', function (v) { return x(v.c0); })
     .attr('fill', function (v) { return v.c0.color || color(v.c0); })
-    .attr('stroke', x.rangeBand() > 4 ? '#fff' : null)
+    .attr('stroke', x.bandwidth() > 4 ? '#fff' : null)
     .attr('data-click', function (v) { return getClickKeys(v, data.columns); })
     .append('svg:title')
     .text(function (d) { return d.c0.niceToString() + ': ' + d.c1.niceToString(); });
   
-  if (x.rangeBand() > 15)
+  if (x.bandwidth() > 15)
   { 
      if(data.parameters["Labels"] == "Margin")
      {
         chart.append('svg:g').attr('class', 'x-label').attr('transform', translate(xRule.start('content'), yRule.start('labels')))
           .enterData(data.rows, 'text', 'x-label')
-          .attr('transform', function (v){ return translate( x(v.c0) + x.rangeBand()/2, 0 ) +  rotate(-90);})
+          .attr('transform', function (v){ return translate( x(v.c0) + x.bandwidth()/2, 0 ) +  rotate(-90);})
           .attr('dominant-baseline', 'middle')
           .attr('font-weight', 'bold')
           .attr('fill', function (v) { return (v.c0.color || color(v.c0)); })
@@ -121,7 +122,7 @@
         var labelMargin = 10;    
         chart.append('svg:g').attr('class', 'x-label').attr('transform', translate(xRule.start('content'), yRule.end('content')))
           .enterData(data.rows, 'text', 'x-label')
-          .attr('transform', function (v){ return translate( x(v.c0) + x.rangeBand()/2, -y(v.c1) ) +   rotate(-90);})
+          .attr('transform', function (v){ return translate( x(v.c0) + x.bandwidth()/2, -y(v.c1) ) +   rotate(-90);})
           .attr('dominant-baseline', 'middle')
           .attr('font-weight', 'bold')
           .attr('fill', function (v) { return y(v.c1) >= size / 2 ? '#fff' : (v.c0.color || color(v.c0)); })
@@ -137,7 +138,7 @@
        chart.append('svg:g').attr('class', 'numbers-label').attr('transform', translate(xRule.start('content'), yRule.end('content')))
        .enterData(data.rows, 'text', 'number-label')
        .filter(function(v){return y(v.c1) > 10; })
-       .attr('transform', function (v){ return translate( x(v.c0) + x.rangeBand()/2, -y(v.c1) / 2 ) +  rotate(-90);})
+       .attr('transform', function (v){ return translate( x(v.c0) + x.bandwidth()/2, -y(v.c1) / 2 ) +  rotate(-90);})
        .attr('fill', data.parameters["NumberColor"])
        .attr('dominant-baseline', 'central')
        .attr('opacity', data.parameters["NumberOpacity"])

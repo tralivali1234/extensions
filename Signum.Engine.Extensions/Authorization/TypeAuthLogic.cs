@@ -28,13 +28,13 @@ namespace Signum.Engine.Authorization
 
         public static bool IsStarted { get { return cache != null; } }
 
-        public static void Start(SchemaBuilder sb)
+        public static void Start(SchemaBuilder sb, DynamicQueryManager dqm)
         {
             if (sb.NotDefined(MethodInfo.GetCurrentMethod()))
             {
                 TypeLogic.AssertStarted(sb);
                 AuthLogic.AssertStarted(sb);
-                TypeConditionLogic.Start(sb);
+                TypeConditionLogic.Start(sb, dqm);
 
                 sb.Schema.EntityEventsGlobal.Saving += Schema_Saving; //because we need Modifications propagated
                 sb.Schema.EntityEventsGlobal.Retrieved += EntityEventsGlobal_Retrieved;
@@ -67,7 +67,7 @@ namespace Signum.Engine.Authorization
 
         public static void AssertStarted(SchemaBuilder sb)
         {
-            sb.AssertDefined(ReflectionTools.GetMethodInfo(() => TypeAuthLogic.Start(null)));
+            sb.AssertDefined(ReflectionTools.GetMethodInfo(() => TypeAuthLogic.Start(null, null)));
         }
 
         static string Schema_IsAllowedCallback(Type type, bool inUserInterface)
@@ -112,12 +112,12 @@ namespace Signum.Engine.Authorization
         public static TypeRulePack GetTypeRules(Lite<RoleEntity> roleLite)
         {
             var result = new TypeRulePack { Role = roleLite };
-
-            cache.GetRules(result, TypeLogic.TypeToEntity.Where(t => !t.Key.IsEnumEntity()).Select(a => a.Value));
+            Schema s = Schema.Current;
+            cache.GetRules(result, TypeLogic.TypeToEntity.Where(t => !t.Key.IsEnumEntity() && s.IsAllowed(t.Key, false) == null).Select(a => a.Value));
 
             foreach (TypeAllowedRule r in result.Rules)
             {
-                Type type = TypeLogic.DnToType[r.Resource];
+                Type type = TypeLogic.EntityToType[r.Resource];
 
                 if (OperationAuthLogic.IsStarted)
                     r.Operations = OperationAuthLogic.GetAllowedThumbnail(roleLite, type);
@@ -153,7 +153,7 @@ namespace Signum.Engine.Authorization
             if (temp.HasValue)
                 return new TypeAllowedAndConditions(temp.Value);
 
-            return cache.GetAllowed(RoleEntity.Current.ToLite(), type);
+            return cache.GetAllowed(RoleEntity.Current, type);
         }
 
         public static TypeAllowedAndConditions GetAllowed(Lite<RoleEntity> role, Type type)
@@ -171,12 +171,13 @@ namespace Signum.Engine.Authorization
             return cache.GetDefaultDictionary();
         }
 
-        static readonly Variable<ImmutableStack<Tuple<Type, TypeAllowed>>> tempAllowed = Statics.ThreadVariable<ImmutableStack<Tuple<Type, TypeAllowed>>>("temporallyAllowed");
+        static readonly Variable<ImmutableStack<(Type type, TypeAllowed typeAllowed)>> tempAllowed = 
+            Statics.ThreadVariable<ImmutableStack<(Type type, TypeAllowed typeAllowed)>>("temporallyAllowed");
 
         public static IDisposable AllowTemporally<T>(TypeAllowed typeAllowed)
             where T : Entity
         {
-            tempAllowed.Value = (tempAllowed.Value ?? ImmutableStack<Tuple<Type, TypeAllowed>>.Empty).Push(Tuple.Create(typeof(T), typeAllowed));
+            tempAllowed.Value = (tempAllowed.Value ?? ImmutableStack<(Type type, TypeAllowed typeAllowed)>.Empty).Push((typeof(T), typeAllowed));
 
             return new Disposable(() => tempAllowed.Value = tempAllowed.Value.Pop());
         }
@@ -186,13 +187,13 @@ namespace Signum.Engine.Authorization
             var ta = tempAllowed.Value;
             if (ta == null || ta.IsEmpty)
                 return null;
+            
+            var pair = ta.FirstOrDefault(a => a.type == type);
 
-            var pair = ta.FirstOrDefault(a => a.Item1 == type);
-
-            if (pair == null)
+            if (pair.type == null)
                 return null;
 
-            return pair.Item2;
+            return pair.typeAllowed;
         }
     }
 
@@ -245,7 +246,7 @@ namespace Signum.Engine.Authorization
         public Func<Type, TypeAllowedAndConditions> MergeDefault(Lite<RoleEntity> role)
         {
             var taac = new TypeAllowedAndConditions(AuthLogic.GetDefaultAllowed(role) ? TypeAllowed.Create : TypeAllowed.None);
-            return new ConstantFunction<Type, TypeAllowedAndConditions>(taac).GetValue;
+            return new ConstantFunctionButEnums(taac).GetValue;
         }
 
         public static TypeAllowedAndConditions MergeBase(IEnumerable<TypeAllowedAndConditions> baseRules, Func<IEnumerable<TypeAllowed>, TypeAllowed> maxMerge, TypeAllowed max, TypeAllowed min)
@@ -275,7 +276,7 @@ namespace Signum.Engine.Authorization
                 return new TypeAllowedAndConditions(null);
 
             return new TypeAllowedAndConditions(maxMerge(baseRules.Select(a => a.Fallback.Value)),
-                conditions.Select((c, i) => new TypeConditionRule(c, maxMerge(baseRules.Where(br => !br.Conditions.IsNullOrEmpty()).Select(br => br.Conditions[i].Allowed)))).ToArray());
+                conditions.Select((c, i) => new TypeConditionRuleEmbedded(c, maxMerge(baseRules.Where(br => !br.Conditions.IsNullOrEmpty()).Select(br => br.Conditions[i].Allowed)))).ToArray());
         }
 
 
@@ -298,6 +299,25 @@ namespace Signum.Engine.Authorization
                 return null;
 
             return acum.Value ? AuthThumbnail.All : AuthThumbnail.None;
+        }
+
+        public static AuthThumbnail? Collapse(this IEnumerable<QueryAllowed> values)
+        {
+            QueryAllowed? acum = null;
+            foreach (var item in values)
+            {
+                if (acum == null)
+                    acum = item;
+                else if (acum.Value != item)
+                    return AuthThumbnail.Mix;
+            }
+
+            if (acum == null)
+                return null;
+
+            return
+               acum.Value == QueryAllowed.None ? AuthThumbnail.None :
+               acum.Value == QueryAllowed.EmbeddedOnly ? AuthThumbnail.Mix : AuthThumbnail.All;
         }
 
         public static AuthThumbnail? Collapse(this IEnumerable<OperationAllowed> values)

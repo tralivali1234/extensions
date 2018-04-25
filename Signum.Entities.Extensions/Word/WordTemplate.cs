@@ -13,47 +13,37 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
 using Signum.Utilities.ExpressionTrees;
+using Signum.Entities;
+using Signum.Entities.UserQueries;
+using Signum.Entities.Chart;
+using Signum.Entities.Dynamic;
+using Signum.Entities.Templating;
 
 namespace Signum.Entities.Word
 {
     [Serializable, EntityKind(EntityKind.Main, EntityData.Master)]
     public class WordTemplateEntity : Entity
     {
-        [NotNullable, SqlDbType(Size = 200)]
+        [UniqueIndex]
         [StringLengthValidator(AllowNulls = false, Min = 3, Max = 200)]
         public string Name { get; set; }
 
-        [NotNullable]
         [NotNullValidator]
         public QueryEntity Query { get; set; }
 
         public SystemWordTemplateEntity SystemWordTemplate { get; set; }
 
-        [NotNullable]
         [NotNullValidator]
         public CultureInfoEntity Culture { get; set; }
 
-        public bool Active { get; set; }
-
-        [MinutesPrecissionValidator]
-        public DateTime? StartDate { get; set; }
-
-        [MinutesPrecissionValidator]
-        public DateTime? EndDate { get; set; }
+        [NotifyChildProperty]
+        public TemplateApplicableEval Applicable { get; set; }
 
         public bool DisableAuthorization { get; set; }
 
-        static Expression<Func<WordTemplateEntity, bool>> IsActiveNowExpression =
-            (mt) => mt.Active && TimeZoneManager.Now.IsInInterval(mt.StartDate, mt.EndDate);
-        [ExpressionField]
-        public bool IsActiveNow()
-        {
-            return IsActiveNowExpression.Evaluate(this);
-        }
 
         public Lite<FileEntity> Template { get; set; }
 
-        [NotNullable, SqlDbType(Size = 100)]
         [StringLengthValidator(AllowNulls = false, Min = 3, Max = 100), FileNameValidator]
         public string FileName { get; set; }
 
@@ -68,19 +58,28 @@ namespace Signum.Entities.Word
             return ToStringExpression.Evaluate(this);
         }
 
-        protected override string PropertyValidation(PropertyInfo pi)
+        public bool IsApplicable(Entity entity)
         {
-            if (pi.Name == nameof(Template) && Template == null && Active)
-                return ValidationMessage._0IsNotSet.NiceToString(pi.NiceName());
+            if (Applicable == null)
+                return true;
 
-            return base.PropertyValidation(pi);
+            try
+            {
+                return Applicable.Algorithm.ApplicableUntyped(entity);
+            }
+            catch (Exception e)
+            {
+                throw new ApplicationException($"Error evaluating Applicable for WordTemplate '{Name}' with entity '{entity}': " + e.Message, e);
+            }
         }
     }
+
 
     [AutoInit]
     public static class WordTemplateOperation
     {
         public static ExecuteSymbol<WordTemplateEntity> Save;
+        public static DeleteSymbol<WordTemplateEntity> Delete;
         public static ExecuteSymbol<WordTemplateEntity> CreateWordReport;
 
         public static ConstructSymbol<WordTemplateEntity>.From<SystemWordTemplateEntity> CreateWordTemplateFromSystemWordTemplate;
@@ -95,6 +94,12 @@ namespace Signum.Entities.Word
         ChooseAReportTemplate,
         [Description("{0} {1} requires extra parameters")]
         _01RequiresExtraParameters,
+        [Description("Select the source of data for your table or chart")]
+        SelectTheSourceOfDataForYourTableOrChart,
+        [Description("Write this key as Title in the 'Alternative text' of your table or chart")]
+        WriteThisKeyAsTileInTheAlternativeTextOfYourTableOrChart,
+        NoDefaultTemplateDefined,
+        WordReport,
     }
 
     [Serializable]
@@ -124,4 +129,14 @@ namespace Signum.Entities.Word
     {
         public static PermissionSymbol GenerateReport;
     }
+
+    [InTypeScript(true)]
+    public enum WordTemplateVisibleOn
+    {
+        Single = 1,
+        Multiple = 2,
+        Query = 4
+    }
+
+    
 }

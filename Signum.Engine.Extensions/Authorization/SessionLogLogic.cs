@@ -10,6 +10,7 @@ using Signum.Engine.DynamicQuery;
 using System.Reflection;
 using Signum.Engine.Basics;
 using Signum.Entities.Basics;
+using System.Threading;
 
 namespace Signum.Engine.Authorization
 {
@@ -21,13 +22,8 @@ namespace Signum.Engine.Authorization
             {
                 AuthLogic.AssertStarted(sb);
 
-                sb.Include<SessionLogEntity>();
-
-                PermissionAuthLogic.RegisterPermissions(SessionLogPermission.TrackSession);
-
-                dqm.RegisterQuery(typeof(SessionLogEntity), () =>
-                    from sl in Database.Query<SessionLogEntity>()
-                    select new
+                sb.Include<SessionLogEntity>()
+                    .WithQuery(dqm, () => sl => new
                     {
                         Entity = sl,
                         sl.Id,
@@ -37,13 +33,20 @@ namespace Signum.Engine.Authorization
                         sl.SessionTimeOut
                     });
 
+                PermissionAuthLogic.RegisterPermissions(SessionLogPermission.TrackSession);
+
                 ExceptionLogic.DeleteLogs += ExceptionLogic_DeleteLogs;
             }
         }
 
-        public static void ExceptionLogic_DeleteLogs(DeleteLogParametersEntity parameters)
+        public static void ExceptionLogic_DeleteLogs(DeleteLogParametersEmbedded parameters, StringBuilder sb, CancellationToken token)
         {
-            Database.Query<SessionLogEntity>().Where(a => a.SessionStart < parameters.DateLimit).UnsafeDeleteChunks(parameters.ChunkSize, parameters.MaxChunks);
+            var dateLimit = parameters.GetDateLimitDelete(typeof(SessionLogEntity).ToTypeEntity());
+
+            if (dateLimit == null)
+                return;
+
+            Database.Query<SessionLogEntity>().Where(a => a.SessionStart < dateLimit.Value).UnsafeDeleteChunksLog(parameters, sb, token);
         }
 
         static bool RoleTracked(Lite<RoleEntity> role)
@@ -54,7 +57,7 @@ namespace Signum.Engine.Authorization
         public static void SessionStart(string userHostAddress, string userAgent)
         {
             var user = UserEntity.Current;
-            if (SessionLogLogic.RoleTracked(user.Role.ToLite()))
+            if (SessionLogLogic.RoleTracked(user.Role))
             {
                 using (AuthLogic.Disable())
                 {
@@ -71,7 +74,7 @@ namespace Signum.Engine.Authorization
 
         public static void SessionEnd(UserEntity user, TimeSpan? timeOut)
         {
-            if (user == null || !RoleTracked(user.Role.ToLite()))
+            if (user == null || !RoleTracked(user.Role))
                 return;
 
             using (AuthLogic.Disable())

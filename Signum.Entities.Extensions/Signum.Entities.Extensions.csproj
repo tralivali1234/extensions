@@ -1,5 +1,7 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="..\..\packages\Microsoft.Net.Compilers.2.7.0\build\Microsoft.Net.Compilers.props" Condition="Exists('..\..\packages\Microsoft.Net.Compilers.2.7.0\build\Microsoft.Net.Compilers.props')" />
+  <Import Project="..\..\packages\Microsoft.CodeDom.Providers.DotNetCompilerPlatform.1.0.8\build\net45\Microsoft.CodeDom.Providers.DotNetCompilerPlatform.props" Condition="Exists('..\..\packages\Microsoft.CodeDom.Providers.DotNetCompilerPlatform.1.0.8\build\net45\Microsoft.CodeDom.Providers.DotNetCompilerPlatform.props')" />
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
@@ -10,7 +12,7 @@
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>Signum.Entities</RootNamespace>
     <AssemblyName>Signum.Entities.Extensions</AssemblyName>
-    <TargetFrameworkVersion>v4.6</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.6.2</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <SccProjectName>
     </SccProjectName>
@@ -41,6 +43,8 @@
     <IsWebBootstrapper>false</IsWebBootstrapper>
     <UseApplicationTrust>false</UseApplicationTrust>
     <BootstrapperEnabled>true</BootstrapperEnabled>
+    <NuGetPackageImportStamp>
+    </NuGetPackageImportStamp>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -62,8 +66,18 @@
     <WarningLevel>4</WarningLevel>
     <CodeAnalysisRuleSet>AllRules.ruleset</CodeAnalysisRuleSet>
     <Prefer32Bit>false</Prefer32Bit>
+    <LangVersion>latest</LangVersion>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="Microsoft.CodeDom.Providers.DotNetCompilerPlatform, Version=1.0.8.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
+      <HintPath>..\..\packages\Microsoft.CodeDom.Providers.DotNetCompilerPlatform.1.0.8\lib\net45\Microsoft.CodeDom.Providers.DotNetCompilerPlatform.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.SqlServer.Types, Version=14.0.0.0, Culture=neutral, PublicKeyToken=89845dcd8080cc91, processorArchitecture=MSIL">
+      <HintPath>..\..\packages\Microsoft.SqlServer.Types.14.0.314.76\lib\net40\Microsoft.SqlServer.Types.dll</HintPath>
+    </Reference>
+    <Reference Include="Newtonsoft.Json, Version=11.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
+      <HintPath>..\..\packages\Newtonsoft.Json.11.0.1\lib\net45\Newtonsoft.Json.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core">
       <RequiredTargetFramework>3.5</RequiredTargetFramework>
@@ -73,6 +87,10 @@
     <Reference Include="System.ServiceModel">
       <RequiredTargetFramework>3.0</RequiredTargetFramework>
     </Reference>
+    <Reference Include="System.ValueTuple, Version=4.0.2.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+      <HintPath>..\..\packages\System.ValueTuple.4.4.0\lib\net461\System.ValueTuple.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Web" />
     <Reference Include="System.Xml.Linq">
       <RequiredTargetFramework>3.5</RequiredTargetFramework>
     </Reference>
@@ -84,6 +102,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Alerts\Alert.cs" />
+    <Compile Include="Authorization\AuthTokenConfigration.cs" />
     <Compile Include="Authorization\AuthMessages.cs" />
     <Compile Include="Authorization\PasswordValidInterval.cs" />
     <Compile Include="Authorization\ResetPasswordRequest.cs" />
@@ -95,12 +114,45 @@
     <Compile Include="Authorization\Role.cs" />
     <Compile Include="Authorization\ServicesData.cs" />
     <Compile Include="Authorization\User.cs" />
+    <Compile Include="Basics\DisabledMixin.cs" />
+    <Compile Include="Basics\FileContent.cs" />
     <Compile Include="Chart\ChartParameter.cs" />
     <Compile Include="Chart\ChartScriptColumn.cs" />
     <Compile Include="Dashboard\DashboardOmniboxResultGenerator.cs" />
     <Compile Include="DiffLog\DiffLogMixin.cs" />
     <Compile Include="DiffLog\Services.cs" />
-    <Compile Include="Files\EmbeddedFile.cs" />
+    <Compile Include="DiffLog\TimeMachine.cs" />
+    <Compile Include="Dynamic\DynamicCode.cs" />
+    <Compile Include="Dynamic\Dynamic.cs" />
+    <Compile Include="Dynamic\DynamicMixinConnection.cs" />
+    <Compile Include="Joyride\Joyride.cs" />
+    <Compile Include="Joyride\JoyrideMessage.cs" />
+    <Compile Include="Joyride\JoyrideStepStyle.cs" />
+    <Compile Include="Joyride\JoyrideStep.cs" />
+    <Compile Include="MachineLearning\NaiveBayesSettings.cs" />
+    <Compile Include="MachineLearning\NeuralNetworkSettings.cs" />
+    <Compile Include="MachineLearning\PredictorCodification.cs" />
+    <Compile Include="MachineLearning\PredictorEpochProgress.cs" />
+    <Compile Include="MachineLearning\PredictorMessage.cs" />
+    <Compile Include="MachineLearning\PredictSimpleResults.cs" />
+    <Compile Include="Mailing\ImageAttachmentEntity.cs" />
+    <Compile Include="Migrations\ExecutedLoadProcess.cs" />
+    <Compile Include="Templating\TemplateApplicable.cs" />
+    <Compile Include="Templating\TemplatingModelConverterSymbole.cs" />
+    <Compile Include="MachineLearning\Predictor.cs" />
+    <Compile Include="Toolbar\Toolbar.cs" />
+    <Compile Include="Dynamic\DynamicSqlMigration.cs" />
+    <Compile Include="Dynamic\DynamicType.cs" />
+    <Compile Include="Dynamic\DynamicExpression.cs" />
+    <Compile Include="Dynamic\DynamicTypeConditionSymbol.cs" />
+    <Compile Include="Dynamic\DynamicTypeCondition.cs" />
+    <Compile Include="Dynamic\DynamicView.cs" />
+    <Compile Include="Dynamic\DynamicValidation.cs" />
+    <Compile Include="Dynamic\EvalEmbedded.cs" />
+    <Compile Include="Excel\ExcelAttachmentEntity.cs" />
+    <Compile Include="Excel\ExcelReportEntity.cs" />
+    <Compile Include="Excel\IExcelReportServer.cs" />
+    <Compile Include="Files\FileEmbedded.cs" />
     <Compile Include="Files\FileUtils.cs" />
     <Compile Include="Help\AppendixHelp.cs" />
     <Compile Include="Help\IHelpServer.cs" />
@@ -108,24 +160,26 @@
     <Compile Include="Help\EntityHelp.cs" />
     <Compile Include="Help\HelpMessage.cs" />
     <Compile Include="Help\HelpModuleOmniboxResult.cs" />
-    <Compile Include="Help\OperationHelp.cs" />
     <Compile Include="Help\QueryHelp.cs" />
     <Compile Include="Isolation\IIsolationServer.cs" />
     <Compile Include="Isolation\IsolationEntity.cs" />
+    <Compile Include="Printing\PrintLine.cs" />
+    <Compile Include="Printing\PrintPackages.cs" />
+    <Compile Include="Rest\RestLog.cs" />
     <Compile Include="Mailing\EmailMasterTemplate.cs" />
+    <Compile Include="Mailing\SendEmailTask.cs" />
     <Compile Include="Mailing\Pop3Configuration.cs" />
     <Compile Include="Mailing\SystemEmail.cs" />
     <Compile Include="Map\MapMessage.cs" />
+    <Compile Include="Map\MapOmniboxResultGenerator.cs" />
     <Compile Include="Migrations\CSharpMigration.cs" />
     <Compile Include="Migrations\SqlMigration.cs" />
     <Compile Include="Scheduler\ScheduledTaskLogEntity.cs" />
-    <Compile Include="Scheduler\ApplicationEventLog.cs" />
+    <Compile Include="Scheduler\SystemEventLog.cs" />
     <Compile Include="SMS\SMSConfigurationEntity.cs" />
     <Compile Include="Basics\CultureInfoEntity.cs" />
     <Compile Include="Basics\DateSpanEntity.cs" />
     <Compile Include="Basics\TypeConditionSymbol.cs" />
-    <Compile Include="Basics\PropertyRouteEntity.cs" />
-    <Compile Include="Basics\QueryEntity.cs" />
     <Compile Include="Cache\CachePermissions.cs" />
     <Compile Include="Chart\ChartColor.cs" />
     <Compile Include="Chart\ChartOmniboxResultGenerator.cs">
@@ -146,9 +200,9 @@
     <Compile Include="Disconnected\DisconnectedMachineEntity.cs" />
     <Compile Include="Disconnected\DisconnectedExportEntity.cs" />
     <Compile Include="Disconnected\FileMessage.cs" />
-    <Compile Include="Files\EmbeddedFilePath.cs" />
-    <Compile Include="Files\File.cs" />
-    <Compile Include="Files\FilePath.cs" />
+    <Compile Include="Files\FilePathEmbedded.cs" />
+    <Compile Include="Files\FileEntity.cs" />
+    <Compile Include="Files\FilePathEntity.cs" />
     <Compile Include="Files\IFileServer.cs" />
     <Compile Include="Mailing\EmailConfiguration.cs" />
     <Compile Include="Templating\TemplateTokenMessage.cs" />
@@ -163,8 +217,11 @@
     <Compile Include="Notes\Note.cs" />
     <Compile Include="Omnibox\SpecialOmniboxResultGenerator.cs" />
     <Compile Include="Processes\IProcessServer.cs" />
+    <Compile Include="Tree\TreeEntity.cs" />
+    <Compile Include="Tree\TreeOmniboxResultGenertor.cs" />
     <Compile Include="UserAssets\IUserAssetsServer.cs" />
     <Compile Include="UserAssets\QueryToken.cs" />
+    <Compile Include="Rest\RestApiKeyEntity.cs" />
     <Compile Include="ViewLog\ViewLogEntity.cs" />
     <Compile Include="UserAssets\UserAssets.cs" />
     <Compile Include="UserQueries\UserQueryOmniboxResultGenerator.cs" />
@@ -178,10 +235,8 @@
     <Compile Include="Profiler\ProfilerPermissions.cs" />
     <Compile Include="SMS\SMSCharacters.cs" />
     <Compile Include="UserQueries\IUserQueryServer.cs" />
-    <Compile Include="Excel\ExcelReportEntity.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="UserAssets\FilterValueConverter.cs" />
-    <Compile Include="Excel\IExcelReportServer.cs" />
     <Compile Include="UserQueries\UserQueryEntity.cs" />
     <Compile Include="Scheduler\HolidayCalendarEntity.cs" />
     <Compile Include="Scheduler\ScheduledTaskEntity.cs" />
@@ -191,16 +246,35 @@
     <Compile Include="SMS\SMSMessage.cs" />
     <Compile Include="SMS\SMSTemplate.cs" />
     <Compile Include="SMS\SMSPackages.cs" />
+    <Compile Include="Word\WordAttachmentEntity.cs" />
     <Compile Include="Word\WordTemplate.cs" />
     <Compile Include="Word\SystemWordTemplate.cs" />
+    <Compile Include="Workflow\Case.cs" />
+    <Compile Include="Workflow\CaseActivity.cs" />
+    <Compile Include="Workflow\CaseJunction.cs" />
+    <Compile Include="Workflow\CaseNotification.cs" />
+    <Compile Include="Workflow\Workflow.cs" />
+    <Compile Include="Workflow\WorkflowTimerCondition.cs" />
+    <Compile Include="Workflow\WorkflowConfiguration.cs" />
+    <Compile Include="Workflow\WorkflowScriptRetryStrategy.cs" />
+    <Compile Include="Workflow\WorkflowScript.cs" />
+    <Compile Include="Workflow\WorkflowActivity.cs" />
+    <Compile Include="Workflow\WorkflowAction.cs" />
+    <Compile Include="Workflow\WorkflowCondition.cs" />
+    <Compile Include="Workflow\WorkflowConnection.cs" />
+    <Compile Include="Workflow\WorkflowEvent.cs" />
+    <Compile Include="Workflow\WorkflowGateway.cs" />
+    <Compile Include="Workflow\WorkflowLane.cs" />
+    <Compile Include="Workflow\WorkflowPool.cs" />
+    <Compile Include="Workflow\WorkflowEventTask.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\Framework\Signum.Entities\Signum.Entities.csproj">
-      <Project>{F2B51D08-498D-4C9F-8112-9521A7762B02}</Project>
+      <Project>{f2b51d08-498d-4c9f-8112-9521a7762b02}</Project>
       <Name>Signum.Entities</Name>
     </ProjectReference>
     <ProjectReference Include="..\..\Framework\Signum.Utilities\Signum.Utilities.csproj">
-      <Project>{F7D3F72D-741D-4F67-8CF8-CD41B9035FED}</Project>
+      <Project>{f7d3f72d-741d-4f67-8cf8-cd41b9035fed}</Project>
       <Name>Signum.Utilities</Name>
     </ProjectReference>
   </ItemGroup>
@@ -222,6 +296,7 @@
     </BootstrapperPackage>
   </ItemGroup>
   <ItemGroup>
+    <None Include="packages.config" />
     <None Include="SMS\SMSCharactersMap.xlsx" />
   </ItemGroup>
   <ItemGroup>
@@ -241,6 +316,7 @@
     <Content Include="Translations\Signum.Entities.Extensions.it.xml">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+    <Content Include="Translations\Signum.Entities.Extensions.nl.xml" />
     <Content Include="Translations\Signum.Entities.Extensions.pt.xml">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
@@ -248,6 +324,7 @@
   <ItemGroup>
     <Analyzer Include="..\..\Framework\Signum.Analyzer\Binaries\Signum.Analyzer.dll" />
   </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
   </PropertyGroup>
@@ -261,5 +338,12 @@
   <UsingTask TaskName="SignumTask" AssemblyFile="..\..\Framework\Signum.MSBuildTask\Binaries\Signum.MSBuildTask.dll" />
   <Target Name="AfterCompile" DependsOnTargets="CoreCompile">
     <SignumTask Assembly="@(IntermediateAssembly)" References="@(ReferencePath)" KeyFile="$(KeyOriginatorFile)" />
+  </Target>
+  <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
+    <PropertyGroup>
+      <ErrorText>This project references NuGet package(s) that are missing on this computer. Use NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=322105. The missing file is {0}.</ErrorText>
+    </PropertyGroup>
+    <Error Condition="!Exists('..\..\packages\Microsoft.CodeDom.Providers.DotNetCompilerPlatform.1.0.8\build\net45\Microsoft.CodeDom.Providers.DotNetCompilerPlatform.props')" Text="$([System.String]::Format('$(ErrorText)', '..\..\packages\Microsoft.CodeDom.Providers.DotNetCompilerPlatform.1.0.8\build\net45\Microsoft.CodeDom.Providers.DotNetCompilerPlatform.props'))" />
+    <Error Condition="!Exists('..\..\packages\Microsoft.Net.Compilers.2.7.0\build\Microsoft.Net.Compilers.props')" Text="$([System.String]::Format('$(ErrorText)', '..\..\packages\Microsoft.Net.Compilers.2.7.0\build\Microsoft.Net.Compilers.props'))" />
   </Target>
 </Project>

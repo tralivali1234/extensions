@@ -12,7 +12,7 @@ using System.Xml.Linq;
 namespace Signum.Entities.Chart
 {
     [Serializable]
-    public class ChartParameterEntity : EmbeddedEntity
+    public class ChartParameterEmbedded : EmbeddedEntity
     {
         [Ignore]
         internal IChartBase parentChart;
@@ -21,18 +21,17 @@ namespace Signum.Entities.Chart
         public IChartBase ParentChart { get { return parentChart; } }
 
         [Ignore]
-        ChartScriptParameterEntity scriptParameter;
-        public ChartScriptParameterEntity ScriptParameter
+        ChartScriptParameterEmbedded scriptParameter;
+        [InTypeScript(false)]
+        public ChartScriptParameterEmbedded ScriptParameter
         {
             get { return scriptParameter; }
             set { scriptParameter = value; Notify(() => ScriptParameter); }
         }
 
-        [NotNullable, SqlDbType(Size = 100)]
         [StringLengthValidator(AllowNulls = false, Min = 3, Max = 100)]
         public string Name { get; set; }
 
-        [SqlDbType(Size = 50)]
         string value;
         [StringLengthValidator(AllowNulls = true, Max = 50)]
         public string Value
@@ -67,6 +66,11 @@ namespace Signum.Entities.Chart
         {
             Name = x.Attribute("Name").Value;
             Value = x.Attribute("Value").Value;
+        }
+
+        public override string ToString()
+        {
+            return Name + ": " + Value;
         }
     }
 }

@@ -19,6 +19,7 @@ using System.Net.Mail;
 using Signum.Entities.UserQueries;
 using Signum.Engine.Templating;
 using Signum.Utilities.ExpressionTrees;
+using System.Threading;
 
 namespace Signum.Engine.Mailing
 {
@@ -104,8 +105,7 @@ namespace Signum.Engine.Mailing
 
             try
             {
-                string error;
-                EmailTemplateParser.TryParse(text, qd, null, out error);
+                EmailTemplateParser.TryParse(text, qd, null, out string error);
 
                 return error.DefaultText(null);
             }
@@ -116,7 +116,7 @@ namespace Signum.Engine.Mailing
         }
 
 
-        static void Newsletter_PreSaving(NewsletterEntity newsletter, ref bool graphModified)
+        static void Newsletter_PreSaving(NewsletterEntity newsletter, PreSavingContext ctx)
         {
             var queryname = QueryLogic.ToQueryName(newsletter.Query.Key);
             QueryDescription qd = DynamicQueryManager.Current.QueryDescription(queryname);
@@ -257,7 +257,7 @@ namespace Signum.Engine.Mailing
             {
                 QueryName = queryName,
                 Filters = new List<Filter>
-                { 
+                {
                     new Filter(QueryUtils.Parse("Entity.NewsletterDeliveries.Element.Newsletter", qd, SubTokensOptions.CanElement),  FilterOperation.EqualTo, newsletter.ToLite()),
                     new Filter(QueryUtils.Parse("Entity.NewsletterDeliveries.Element.Sent", qd, SubTokensOptions.CanElement), FilterOperation.EqualTo, false),
                 },
@@ -342,7 +342,7 @@ namespace Signum.Engine.Mailing
                     {
                         Exception = f.Exception.LogException().ToLite(), 
                         Line = f.NewsletterDelivery,
-                        Process = executingProcess.CurrentExecution.ToLite(),
+                        Process = executingProcess.CurrentProcess.ToLite(),
                     }.Save();
                 }
 

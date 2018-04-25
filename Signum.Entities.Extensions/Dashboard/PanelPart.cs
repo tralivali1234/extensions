@@ -10,13 +10,21 @@ using System.Linq.Expressions;
 using System.Xml.Linq;
 using Signum.Utilities.DataStructures;
 using Signum.Entities.UserQueries;
+using Signum.Entities.Omnibox;
 
 namespace Signum.Entities.Dashboard
 {
     [Serializable]
-    public class PanelPartEntity : EmbeddedEntity, IGridEntity
+    public class PanelPartEmbedded : EmbeddedEntity, IGridEntity
     {
+        [StringLengthValidator(AllowNulls = true, Min = 3, Max = 100)]
         public string Title { get; set; }
+
+        [StringLengthValidator(AllowNulls = true, Min = 3, Max = 100)]
+        public string IconName { get; set; }
+
+        [StringLengthValidator(AllowNulls = true, Min = 3, Max = 100)]
+        public string IconColor { get; set; }
 
         [NumberIsValidator(ComparisonType.GreaterThanOrEqualTo, 0)]
         public int Row { get; set; }
@@ -29,7 +37,11 @@ namespace Signum.Entities.Dashboard
 
         public PanelStyle Style { get; set; }
 
-        [ImplementedBy(typeof(UserChartPartEntity), typeof(UserQueryPartEntity), typeof(CountSearchControlPartEntity), typeof(LinkListPartEntity))]
+        [ImplementedBy(
+            typeof(UserChartPartEntity),
+            typeof(UserQueryPartEntity),
+            typeof(ValueUserQueryListPartEntity),
+            typeof(LinkListPartEntity))]
         public IPartEntity Content { get; set; }
 
         public override string ToString()
@@ -48,14 +60,17 @@ namespace Signum.Entities.Dashboard
             return base.PropertyValidation(pi);
         }
 
-        public PanelPartEntity Clone()
+        public PanelPartEmbedded Clone()
         {
-            return new PanelPartEntity
+            return new PanelPartEmbedded
             {
                 Columns = Columns,
                 StartColumn = StartColumn,
                 Content = Content.Clone(),
-                Title = Title
+                Title = Title,
+                Row = Row,
+                Style = Style,
+
             };
         }
 
@@ -72,6 +87,9 @@ namespace Signum.Entities.Dashboard
                 new XAttribute("StartColumn", StartColumn),
                 new XAttribute("Columns", Columns),
                 Title == null ? null : new XAttribute("Title", Title),
+                IconName == null ? null : new XAttribute("IconName", IconName),
+                IconColor == null ? null : new XAttribute("IconColor", IconColor),
+                new XAttribute("Style", Style),
                 Content.ToXml(ctx));
         }
 
@@ -81,6 +99,9 @@ namespace Signum.Entities.Dashboard
             StartColumn = int.Parse(x.Attribute("StartColumn").Value);
             Columns = int.Parse(x.Attribute("Columns").Value);
             Title = x.Attribute("Title")?.Value;
+            IconName = x.Attribute("IconName")?.Value;
+            IconColor = x.Attribute("IconColor")?.Value;
+            Style = (PanelStyle)(x.Attribute("Style")?.Let(a => Enum.Parse(typeof(PanelStyle), a.Value)) ?? PanelStyle.Default);
             Content = ctx.GetPart(Content, x.Elements().Single());
         }
 
@@ -94,10 +115,13 @@ namespace Signum.Entities.Dashboard
     {
         Default,
         Primary,
+        Secondary,
         Success,
         Info,
         Warning,
-        Danger
+        Danger,
+        Light,
+        Dark,
     }
 
     public interface IGridEntity
@@ -119,12 +143,11 @@ namespace Signum.Entities.Dashboard
     [Serializable, EntityKind(EntityKind.Part, EntityData.Master)]
     public class UserQueryPartEntity : Entity, IPartEntity
     {
-        [NotNullable]
         [NotNullValidator]
         public UserQueryEntity UserQuery { get; set; }
-        
-        public bool AllowSelection { get; set; }
-        
+
+        public UserQueryPartRenderMode RenderMode { get; set; }
+
         public override string ToString()
         {
             return UserQuery?.ToString();
@@ -140,29 +163,41 @@ namespace Signum.Entities.Dashboard
             return new UserQueryPartEntity
             {
                 UserQuery = this.UserQuery,
+                RenderMode = this.RenderMode,
+
             };
         }
 
         public XElement ToXml(IToXmlContext ctx)
         {
             return new XElement("UserQueryPart",
-                new XAttribute("UserQuery", ctx.Include(UserQuery)));
+                new XAttribute("UserQuery", ctx.Include(UserQuery)),
+                new XAttribute("RenderMode", RenderMode.ToString()));
         }
 
         public void FromXml(XElement element, IFromXmlContext ctx)
         {
             UserQuery = (UserQueryEntity)ctx.GetEntity(Guid.Parse(element.Attribute("UserQuery").Value));
+            RenderMode = element.Attribute("RenderMode")?.Value.ToEnum<UserQueryPartRenderMode>() ?? UserQueryPartRenderMode.SearchControl;
         }
+    }
+
+    public enum UserQueryPartRenderMode
+    {
+        SearchControl,
+        SearchControlWithoutSelection,
+        BigValue,
     }
 
     [Serializable, EntityKind(EntityKind.Part, EntityData.Master)]
     public class UserChartPartEntity : Entity, IPartEntity
     {
-        [NotNullable]
         [NotNullValidator]
         public UserChartEntity UserChart { get; set; }
 
         public bool ShowData { get; set; } = false;
+
+        public bool AllowChangeShowData { get; set; } = false;
 
         public override string ToString()
         {
@@ -179,7 +214,8 @@ namespace Signum.Entities.Dashboard
             return new UserChartPartEntity
             {
                 UserChart = this.UserChart,
-                ShowData = this.ShowData
+                ShowData = this.ShowData,
+                AllowChangeShowData = this.AllowChangeShowData,
             };
         }
 
@@ -187,20 +223,23 @@ namespace Signum.Entities.Dashboard
         {
             return new XElement("UserChartPart",
                 new XAttribute("ShowData", ShowData),
+                new XAttribute("AllowChangeShowData", AllowChangeShowData),
                 new XAttribute("UserChart", ctx.Include(UserChart)));
         }
 
         public void FromXml(XElement element, IFromXmlContext ctx)
         {
+            ShowData = element.Attribute("ShowData")?.Value.ToBool() ?? false;
+            AllowChangeShowData = element.Attribute("AllowChangeShowData")?.Value.ToBool() ?? false;
             UserChart = (UserChartEntity)ctx.GetEntity(Guid.Parse(element.Attribute("UserChart").Value));
         }
     }
 
     [Serializable, EntityKind(EntityKind.Part, EntityData.Master)]
-    public class CountSearchControlPartEntity : Entity, IPartEntity
+    public class ValueUserQueryListPartEntity : Entity, IPartEntity
     {
-        [NotNullable]
-        public MList<CountUserQueryElementEntity> UserQueries { get; set; } = new MList<CountUserQueryElementEntity>();
+        [NotNullValidator]
+        public MList<ValueUserQueryElementEmbedded> UserQueries { get; set; } = new MList<ValueUserQueryElementEmbedded>();
 
         public override string ToString()
         {
@@ -214,7 +253,7 @@ namespace Signum.Entities.Dashboard
 
         public IPartEntity Clone()
         {
-            return new CountSearchControlPartEntity
+            return new ValueUserQueryListPartEntity
             {
                 UserQueries = this.UserQueries.Select(e => e.Clone()).ToMList(),
             };
@@ -222,18 +261,18 @@ namespace Signum.Entities.Dashboard
 
         public XElement ToXml(IToXmlContext ctx)
         {
-            return new XElement("CountSearchControlPart",
+            return new XElement("ValueUserQueryListPart",
                 UserQueries.Select(cuqe => cuqe.ToXml(ctx)));
         }
 
         public void FromXml(XElement element, IFromXmlContext ctx)
         {
-            UserQueries.Syncronize(element.Elements().ToList(), (cuqe, x) => cuqe.FromXml(x, ctx));
+            UserQueries.Synchronize(element.Elements().ToList(), (cuqe, x) => cuqe.FromXml(x, ctx));
         }
     }
 
     [Serializable]
-    public class CountUserQueryElementEntity : EmbeddedEntity
+    public class ValueUserQueryElementEmbedded : EmbeddedEntity
     {
         string label;
         public string Label
@@ -247,9 +286,9 @@ namespace Signum.Entities.Dashboard
 
         public string Href { get; set; }
 
-        public CountUserQueryElementEntity Clone()
+        public ValueUserQueryElementEmbedded Clone()
         {
-            return new CountUserQueryElementEntity
+            return new ValueUserQueryElementEmbedded
             {
                 Href = this.Href,
                 Label = this.Label,
@@ -259,7 +298,7 @@ namespace Signum.Entities.Dashboard
 
         internal XElement ToXml(IToXmlContext ctx)
         {
-            return new XElement("CountUserQueryElement",
+            return new XElement("ValueUserQueryElement",
                 Label == null ? null : new XAttribute("Label", Label),
                 Href == null ? null : new XAttribute("Href", Href),
                 new XAttribute("UserQuery", ctx.Include(UserQuery)));
@@ -276,12 +315,12 @@ namespace Signum.Entities.Dashboard
     [Serializable, EntityKind(EntityKind.Part, EntityData.Master)]
     public class LinkListPartEntity : Entity, IPartEntity
     {
-        [NotNullable]
-        public MList<LinkElementEntity> Links { get; set; } = new MList<LinkElementEntity>();
+        [NotNullValidator]
+        public MList<LinkElementEmbedded> Links { get; set; } = new MList<LinkElementEmbedded>();
 
         public override string ToString()
         {
-            return "{0} {1}".FormatWith(Links.Count, typeof(LinkElementEntity).NicePluralName());
+            return "{0} {1}".FormatWith(Links.Count, typeof(LinkElementEmbedded).NicePluralName());
         }
 
         public bool RequiresTitle
@@ -306,23 +345,22 @@ namespace Signum.Entities.Dashboard
 
         public void FromXml(XElement element, IFromXmlContext ctx)
         {
-            Links.Syncronize(element.Elements().ToList(), (le, x) => le.FromXml(x));
+            Links.Synchronize(element.Elements().ToList(), (le, x) => le.FromXml(x));
         }
     }
 
     [Serializable]
-    public class LinkElementEntity : EmbeddedEntity
+    public class LinkElementEmbedded : EmbeddedEntity
     {
-        [NotNullValidator]
+        [StringLengthValidator(AllowNulls = false, Max = 200)]
         public string Label { get; set; }
 
-        [SqlDbType(Size = int.MaxValue)]
-        [URLValidator, StringLengthValidator(AllowNulls = false)]
+        [URLValidator(absolute: true, aspNetSiteRelative: true), StringLengthValidator(AllowNulls = false, Max = int.MaxValue)]
         public string Link { get; set; }
 
-        public LinkElementEntity Clone()
+        public LinkElementEmbedded Clone()
         {
-            return new LinkElementEntity
+            return new LinkElementEmbedded
             {
                 Label = this.Label,
                 Link = this.Link

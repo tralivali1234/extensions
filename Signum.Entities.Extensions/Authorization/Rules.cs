@@ -6,17 +6,16 @@ using Signum.Utilities;
 using Signum.Entities.Basics;
 using System.Text.RegularExpressions;
 using System.Reflection;
+using Signum.Entities;
 
 namespace Signum.Entities.Authorization
 {
     [Serializable, EntityKind(EntityKind.System, EntityData.Master)]
-    public class RuleEntity<R, A> : Entity
-        where R : Entity
+    public abstract class RuleEntity<R, A> : Entity
     {
         [NotNullValidator]
         public Lite<RoleEntity> Role { get; set; }
 
-        [NotNullable]
         [NotNullValidator]
         public R Resource { get; set; }
 
@@ -27,20 +26,37 @@ namespace Signum.Entities.Authorization
             return "{0} for {1} <- {2}".FormatWith(Resource, Role, Allowed);
         }
 
-        protected override void PreSaving(ref bool graphModified)
+        protected override void PreSaving(PreSavingContext ctx)
         {
             this.toStr = this.ToString();
         }
     }
 
     [Serializable]
-    public class RuleQueryEntity : RuleEntity<QueryEntity, bool> { }
+    public class RuleQueryEntity : RuleEntity<QueryEntity, QueryAllowed> { }
 
     [Serializable]
     public class RulePermissionEntity : RuleEntity<PermissionSymbol, bool> { }
 
     [Serializable]
-    public class RuleOperationEntity : RuleEntity<OperationSymbol, OperationAllowed> { }
+    public class RuleOperationEntity : RuleEntity<OperationTypeEmbedded, OperationAllowed> { }
+
+
+    [Serializable, InTypeScript(Undefined = false)]
+    public class OperationTypeEmbedded : EmbeddedEntity
+    {
+        [NotNullValidator]
+        public OperationSymbol Operation { get; set; }
+
+        //[NotNullable] While transition
+        [NotNullValidator]
+        public TypeEntity Type { get; set; }
+
+        public override string ToString()
+        {
+            return $"{Operation}/{Type}";
+        }
+    }
 
     [Serializable]
     public class RulePropertyEntity : RuleEntity<PropertyRouteEntity, PropertyAllowed> { }
@@ -48,19 +64,19 @@ namespace Signum.Entities.Authorization
     [Serializable]
     public class RuleTypeEntity : RuleEntity<TypeEntity, TypeAllowed>
     {
-        [NotNullable, PreserveOrder]
-        public MList<RuleTypeConditionEntity> Conditions { get; set; } = new MList<RuleTypeConditionEntity>();
+        [NotNullValidator, PreserveOrder]
+        public MList<RuleTypeConditionEmbedded> Conditions { get; set; } = new MList<RuleTypeConditionEmbedded>();
     }
 
     [Serializable]
-    public class RuleTypeConditionEntity : EmbeddedEntity, IEquatable<RuleTypeConditionEntity>
+    public class RuleTypeConditionEmbedded : EmbeddedEntity, IEquatable<RuleTypeConditionEmbedded>
     {
         [NotNullValidator]
         public TypeConditionSymbol Condition { get; set; }
 
         public TypeAllowed Allowed { get; set; }
 
-        public bool Equals(RuleTypeConditionEntity other)
+        public bool Equals(RuleTypeConditionEmbedded other)
         {
             return this.Condition.Equals(other.Condition)
                 && this.Allowed == other.Allowed;
@@ -70,6 +86,14 @@ namespace Signum.Entities.Authorization
         {
             return "{0} ({1})".FormatWith(Condition, Allowed);
         }
+    }
+
+    [DescriptionOptions(DescriptionOptions.Members)]
+    public enum QueryAllowed
+    {
+        None = 0,
+        EmbeddedOnly = 1,
+        Allow = 2,
     }
 
     [DescriptionOptions(DescriptionOptions.Members)]
@@ -174,6 +198,7 @@ namespace Signum.Entities.Authorization
         }
     }
 
+    [InTypeScript(true)]
     [DescriptionOptions(DescriptionOptions.Members)]
     public enum TypeAllowedBasic
     {

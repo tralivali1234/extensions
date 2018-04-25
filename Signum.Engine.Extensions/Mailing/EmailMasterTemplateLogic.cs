@@ -17,7 +17,7 @@ namespace Signum.Engine.Mailing
 {
     public static class EmailMasterTemplateLogic
     {
-        public static EmailMasterTemplateMessageEntity GetCultureMessage(this EmailMasterTemplateEntity template, CultureInfo ci)
+        public static EmailMasterTemplateMessageEmbedded GetCultureMessage(this EmailMasterTemplateEntity template, CultureInfo ci)
         {
             return template.Messages.SingleOrDefault(tm => tm.CultureInfo.ToCultureInfo() == ci);
         }
@@ -28,17 +28,14 @@ namespace Signum.Engine.Mailing
         {
             if (sb.NotDefined(MethodInfo.GetCurrentMethod()))
             {
-                sb.Include<EmailMasterTemplateEntity>();
-
-                dqm.RegisterQuery(typeof(EmailMasterTemplateEntity), () =>
-                    from t in Database.Query<EmailMasterTemplateEntity>()
-                    select new
+                sb.Include<EmailMasterTemplateEntity>()
+                    .WithQuery(dqm, () => t => new
                     {
                         Entity = t,
                         t.Id,
                         t.Name,
                     });
-
+                
                 EmailMasterTemplateGraph.Register();
 
                 Validator.PropertyValidator<EmailMasterTemplateEntity>(et => et.Messages).StaticPropertyValidation += (et, pi) =>

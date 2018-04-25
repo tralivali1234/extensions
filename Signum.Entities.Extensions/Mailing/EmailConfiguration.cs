@@ -8,7 +8,7 @@ using Signum.Entities.Translation;
 namespace Signum.Entities.Mailing
 {
     [Serializable]
-    public class EmailConfigurationEntity : EmbeddedEntity
+    public class EmailConfigurationEmbedded : EmbeddedEntity
     {
         [NotNullValidator]
         public CultureInfoEntity DefaultCulture { get; set; }
@@ -19,7 +19,6 @@ namespace Signum.Entities.Mailing
 
         public bool ReciveEmails { get; set; }
 
-        [SqlDbType(Size = 100)]
         [StringLengthValidator(AllowNulls = true, Min = 3, Max = 100), EMailValidator]
         public string OverrideEmailAddress { get; set; }
 

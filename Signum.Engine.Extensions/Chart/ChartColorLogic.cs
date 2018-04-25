@@ -26,16 +26,13 @@ namespace Signum.Engine.Chart
         {
             if (sb.NotDefined(MethodInfo.GetCurrentMethod()))
             {
-                sb.Include<ChartColorEntity>();
-
-                dqm.RegisterQuery(typeof(ChartColorEntity), () =>
-                    from cc in Database.Query<ChartColorEntity>()
-                    select new
+                sb.Include<ChartColorEntity>()
+                    .WithQuery(dqm, () => cc => new
                     {
                         Entity = cc,
                         cc.Related,
                         cc.Color,
-                    });
+                    }); 
 
                 Colors = sb.GlobalLazy(() =>
                     Database.Query<ChartColorEntity>()
@@ -66,7 +63,7 @@ namespace Signum.Engine.Chart
 
             for (int i = 0; i < list.Count; i++)
             {
-                list[i].Color = ColorEntity.FromRGBHex(cats[i % cats.Length]);
+                list[i].Color = ColorEmbedded.FromRGBHex(cats[i % cats.Length]);
             }
 
             list.SaveList();
@@ -124,7 +121,7 @@ namespace Signum.Engine.Chart
                 Colors = Database.RetrieveAllLite(type).Select(l => new ChartColorEntity
                 {
                     Related = (Lite<Entity>)l,
-                    Color = dic.TryGetS(l.Id)?.Let(c => new ColorEntity { Argb = c.ToArgb() })
+                    Color = dic.TryGetS(l.Id)?.Let(c => new ColorEmbedded { Argb = c.ToArgb() })
                 }).ToMList()
             };
         }

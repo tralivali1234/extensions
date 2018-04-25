@@ -27,7 +27,7 @@ namespace Signum.Engine.SMS
 
     public static class SMSLogic
     {
-        public static SMSTemplateMessageEntity GetCultureMessage(this SMSTemplateEntity template, CultureInfo ci)
+        public static SMSTemplateMessageEmbedded GetCultureMessage(this SMSTemplateEntity template, CultureInfo ci)
         {
             return template.Messages.SingleOrDefault(tm => tm.CultureInfo.ToCultureInfo() == ci);
         }
@@ -58,8 +58,8 @@ namespace Signum.Engine.SMS
 
 
 
-        static Func<SMSConfigurationEntity> getConfiguration;
-        public static SMSConfigurationEntity Configuration
+        static Func<SMSConfigurationEmbedded> getConfiguration;
+        public static SMSConfigurationEmbedded Configuration
         {
             get { return getConfiguration(); }
         }
@@ -71,7 +71,7 @@ namespace Signum.Engine.SMS
             sb.AssertDefined(ReflectionTools.GetMethodInfo(() => Start(null, null, null, null)));
         }
 
-        public static void Start(SchemaBuilder sb, DynamicQueryManager dqm, ISMSProvider provider, Func<SMSConfigurationEntity> getConfiguration)
+        public static void Start(SchemaBuilder sb, DynamicQueryManager dqm, ISMSProvider provider, Func<SMSConfigurationEmbedded> getConfiguration)
         {
             if (sb.NotDefined(MethodInfo.GetCurrentMethod()))
             {
@@ -80,12 +80,8 @@ namespace Signum.Engine.SMS
                 SMSLogic.getConfiguration = getConfiguration;
                 SMSLogic.Provider = provider;
 
-                sb.Include<SMSMessageEntity>();
-                sb.Include<SMSTemplateEntity>();
-
-                dqm.RegisterQuery(typeof(SMSMessageEntity), () =>
-                    from m in Database.Query<SMSMessageEntity>()
-                    select new
+                sb.Include<SMSMessageEntity>()
+                    .WithQuery(dqm, () => m => new
                     {
                         Entity = m,
                         m.Id,
@@ -96,9 +92,8 @@ namespace Signum.Engine.SMS
                         m.Template
                     });
 
-                dqm.RegisterQuery(typeof(SMSTemplateEntity), () =>
-                    from t in Database.Query<SMSTemplateEntity>()
-                    select new
+                sb.Include<SMSTemplateEntity>()
+                    .WithQuery(dqm, () => t => new
                     {
                         Entity = t,
                         t.Id,
@@ -109,7 +104,7 @@ namespace Signum.Engine.SMS
                         t.StartDate,
                         t.EndDate,
                     });
-
+                
                 SMSMessageGraph.Register();
                 SMSTemplateGraph.Register();
 
@@ -146,7 +141,7 @@ namespace Signum.Engine.SMS
 
                     MultipleSMSModel model = args.GetArg<MultipleSMSModel>();
 
-                    Dictionary<string, string> str = model.IntegrityCheck();
+                    IntegrityCheck ic = model.IntegrityCheck();
 
                     if (!model.Message.HasText())
                         throw new ApplicationException("The text for the SMS message has not been set");
@@ -224,7 +219,7 @@ namespace Signum.Engine.SMS
                 {
                     var template = args.GetArg<SMSTemplateEntity>();
 
-                    if (TypeLogic.DnToType[template.AssociatedType] != typeof(T))
+                    if (TypeLogic.EntityToType[template.AssociatedType] != typeof(T))
                         throw new ArgumentException("The SMS template is associated with the type {0} instead of {1}"
                             .FormatWith(template.AssociatedType.FullClassName, typeof(T).FullName));
 
@@ -287,7 +282,7 @@ namespace Signum.Engine.SMS
                     var template = args.GetArg<SMSTemplateEntity>();
 
                     if (template.AssociatedType != null &&
-                        TypeLogic.DnToType[template.AssociatedType] != typeof(T))
+                        TypeLogic.EntityToType[template.AssociatedType] != typeof(T))
                         throw new ArgumentException("The SMS template is associated with the type {0} instead of {1}"
                             .FormatWith(template.AssociatedType.FullClassName, typeof(T).FullName));
 
@@ -354,7 +349,7 @@ namespace Signum.Engine.SMS
             public string Value;
         }
 
-        static string CombineText(SMSTemplateEntity template, SMSTemplateMessageEntity templateMessage, List<Combination> combinations)
+        static string CombineText(SMSTemplateEntity template, SMSTemplateMessageEmbedded templateMessage, List<Combination> combinations)
         {
             string text = templateMessage.Message;
 
@@ -376,7 +371,7 @@ namespace Signum.Engine.SMS
                 switch (onExceeded)
                 {
                     case MessageLengthExceeded.NotAllowed:
-                        throw new ApplicationException(SmsMessage.TheTextForTheSMSMessageExceedsTheLengthLimit.NiceToString());
+                        throw new ApplicationException(SMSCharactersMessage.TheTextForTheSMSMessageExceedsTheLengthLimit.NiceToString());
                     case MessageLengthExceeded.Allowed:
                         break;
                     case MessageLengthExceeded.TextPruning:
@@ -548,7 +543,7 @@ namespace Signum.Engine.SMS
 
             new ConstructFrom<SMSTemplateEntity>(SMSMessageOperation.CreateSMSFromSMSTemplate)
             {
-                CanConstruct = t => !t.Active ? SmsMessage.TheTemplateMustBeActiveToConstructSMSMessages.NiceToString() : null,
+                CanConstruct = t => !t.Active ? SMSCharactersMessage.TheTemplateMustBeActiveToConstructSMSMessages.NiceToString() : null,
                 ToStates = { SMSMessageState.Created },
                 Construct = (t, args) =>
                 {
@@ -596,7 +591,7 @@ namespace Signum.Engine.SMS
 
             new Graph<SMSMessageEntity>.Execute(SMSMessageOperation.UpdateStatus)
             {
-                CanExecute = m => m.State != SMSMessageState.Created ? null : SmsMessage.StatusCanNotBeUpdatedForNonSentMessages.NiceToString(),
+                CanExecute = m => m.State != SMSMessageState.Created ? null : SMSCharactersMessage.StatusCanNotBeUpdatedForNonSentMessages.NiceToString(),
                 Execute = (sms, args) =>
                 {
                     var func = args.TryGetArgC<Func<SMSMessageEntity, SMSMessageState>>();

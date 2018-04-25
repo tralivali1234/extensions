@@ -9,9 +9,8 @@ using System.Threading.Tasks;
 namespace Signum.Entities.Chart
 {
     [Serializable]
-    public class ChartScriptColumnEntity : EmbeddedEntity
+    public class ChartScriptColumnEmbedded : EmbeddedEntity
     {
-        [NotNullable, SqlDbType(Size = 80)]
         [StringLengthValidator(AllowNulls = false, Min = 3, Max = 80)]
         public string DisplayName { get; set; }
 
@@ -21,9 +20,9 @@ namespace Signum.Entities.Chart
 
         public bool IsGroupKey { get; set; }
 
-        internal ChartScriptColumnEntity Clone()
+        internal ChartScriptColumnEmbedded Clone()
         {
-            return new ChartScriptColumnEntity
+            return new ChartScriptColumnEmbedded
             {
                 DisplayName = DisplayName,
                 IsGroupKey = IsGroupKey,
@@ -87,7 +86,7 @@ namespace Signum.Entities.Chart
 
         public static string GetCode(this ChartColumnType columnType)
         {
-            return codes[columnType];
+            return codes.GetOrThrow(columnType);
         }
 
         public static string GetComposedCode(this ChartColumnType columnType)
@@ -119,8 +118,7 @@ namespace Signum.Entities.Chart
             type = default(ChartColumnType);
             foreach (var item in code.Split(','))
             {
-                ChartColumnType temp;
-                string error = TryParse(item, out temp);
+                string error = TryParse(item, out ChartColumnType temp);
 
                 if (error.HasText())
                     return error;

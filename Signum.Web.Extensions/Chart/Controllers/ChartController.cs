@@ -21,6 +21,8 @@ using Signum.Engine.Authorization;
 using Signum.Engine.Excel;
 using Signum.Entities.UserAssets;
 using Signum.Entities.UserQueries;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Signum.Web.Chart
 {
@@ -97,9 +99,12 @@ namespace Signum.Web.Chart
 
             QueryDescription qd = DynamicQueryManager.Current.QueryDescription(request.QueryName);
 
-            FilterOption fo = new FilterOption(tokenName, null);
-            fo.Token = QueryUtils.Parse(tokenName, qd, SubTokensOptions.CanAnyAll | SubTokensOptions.CanElement | (request.GroupResults ? SubTokensOptions.CanAggregate : 0));
-            fo.Operation = QueryUtils.GetFilterOperations(QueryUtils.GetFilterType(fo.Token.Type)).FirstEx();
+            var token = QueryUtils.Parse(tokenName, qd, SubTokensOptions.CanAnyAll | SubTokensOptions.CanElement | (request.GroupResults ? SubTokensOptions.CanAggregate : 0));
+            FilterOption fo = new FilterOption(tokenName, null)
+            {
+                Token = token,
+                Operation = QueryUtils.GetFilterOperations(QueryUtils.GetFilterType(token.Type)).FirstEx(),
+            };
 
             return Content(FilterBuilderHelper.NewFilter(
                     FinderController.CreateHtmlHelper(this), fo, new Context(null, this.Prefix()), index).ToHtmlString());
@@ -186,7 +191,7 @@ namespace Signum.Web.Chart
             }
         }
 
-        private FilterOption GetSubgroupFilter(ChartColumnEntity chartToken, string key)
+        private FilterOption GetSubgroupFilter(ChartColumnEmbedded chartToken, string key)
         {
             if (chartToken == null || chartToken.Token.Token is AggregateToken)
                 return null;
@@ -223,11 +228,11 @@ namespace Signum.Web.Chart
             if (!Finder.IsFindable(request.QueryName))
                 throw new UnauthorizedAccessException(ChartMessage.Chart_Query0IsNotAllowed.NiceToString().FormatWith(request.QueryName));
 
-            var resultTable = ChartLogic.ExecuteChart(request);
+            var resultTable = ChartLogic.ExecuteChartAsync(request, CancellationToken.None).Result;
 
-            byte[] binaryFile = PlainExcelGenerator.WritePlainExcel(resultTable);
+            byte[] binaryFile = PlainExcelGenerator.WritePlainExcel(resultTable, QueryUtils.GetNiceName(request.QueryName));
 
-            return File(binaryFile, MimeType.FromExtension(".xlsx"), Finder.ResolveWebQueryName(request.QueryName) + ".xlsx");
+            return File(binaryFile, MimeMapping.GetMimeMapping(".xlsx"), Finder.ResolveWebQueryName(request.QueryName) + ".xlsx");
         }
         #endregion
 
@@ -242,7 +247,7 @@ namespace Signum.Web.Chart
             if (lastTokenChanged != null)
             {
                 if (lastTokenChanged == -1)
-                    chart.ChartScript.SyncronizeColumns(chart); 
+                    chart.ChartScript.SynchronizeColumns(chart); 
                 else
                     chart.Columns[lastTokenChanged.Value].TokenChanged();
             }

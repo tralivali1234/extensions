@@ -18,7 +18,6 @@ namespace Signum.Entities.SMS
     [Serializable, EntityKind(EntityKind.Main, EntityData.Master)]
     public class SMSTemplateEntity : Entity
     {
-        [SqlDbType(Size = 100)]
         [StringLengthValidator(AllowNulls = false, Min = 3, Max = 100)]
         public string Name { get; set; }
 
@@ -29,9 +28,9 @@ namespace Signum.Entities.SMS
         public TypeEntity AssociatedType { get; set; }
 
         [NotifyCollectionChanged]
-        public MList<SMSTemplateMessageEntity> Messages { get; set; } = new MList<SMSTemplateMessageEntity>();
+        public MList<SMSTemplateMessageEmbedded> Messages { get; set; } = new MList<SMSTemplateMessageEmbedded>();
 
-        [StringLengthValidator(AllowNulls = false)]
+        [StringLengthValidator(AllowNulls = false, Max = 200)]
         public string From { get; set; }
 
         public MessageLengthExceeded MessageLengthExceeded { get; set; } = MessageLengthExceeded.NotAllowed;
@@ -86,18 +85,18 @@ namespace Signum.Entities.SMS
             if (sender == Messages)
             {
                 if (args.OldItems != null)
-                    foreach (var item in args.OldItems.Cast<SMSTemplateMessageEntity>())
+                    foreach (var item in args.OldItems.Cast<SMSTemplateMessageEmbedded>())
                         item.Template = null;
 
                 if (args.NewItems != null)
-                    foreach (var item in args.NewItems.Cast<SMSTemplateMessageEntity>())
+                    foreach (var item in args.NewItems.Cast<SMSTemplateMessageEmbedded>())
                         item.Template = this;
             }
         }
 
-        protected override void PreSaving(ref bool graphModified)
+        protected override void PreSaving(PreSavingContext ctx)
         {
-            base.PreSaving(ref graphModified);
+            base.PreSaving(ctx);
 
             Messages.ForEach(e => e.Template = this);
         }
@@ -120,11 +119,11 @@ namespace Signum.Entities.SMS
     }
 
     [Serializable]
-    public class SMSTemplateMessageEntity : EmbeddedEntity
+    public class SMSTemplateMessageEmbedded : EmbeddedEntity
     {
-        public SMSTemplateMessageEntity() { }
+        public SMSTemplateMessageEmbedded() { }
 
-        public SMSTemplateMessageEntity(CultureInfoEntity culture)
+        public SMSTemplateMessageEmbedded(CultureInfoEntity culture)
         {
             this.CultureInfo = culture;
         }
@@ -137,11 +136,9 @@ namespace Signum.Entities.SMS
             set { template = value; }
         }
 
-        [NotNullable]
         [NotNullValidator]
         public CultureInfoEntity CultureInfo { get; set; }
 
-        [NotNullable, SqlDbType(Size = int.MaxValue)]
         [StringLengthValidator(AllowNulls = false, MultiLine = true)]
         public string Message { get; set; }
 

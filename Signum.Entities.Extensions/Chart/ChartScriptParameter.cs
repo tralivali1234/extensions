@@ -13,9 +13,8 @@ using System.Globalization;
 namespace Signum.Entities.Chart
 {
     [Serializable]
-    public class ChartScriptParameterEntity : EmbeddedEntity
+    public class ChartScriptParameterEmbedded : EmbeddedEntity
     {
-        [NotNullable, SqlDbType(Size = 50)]
         [StringLengthValidator(AllowNulls = false, Min = 3, Max = 50)]
         public string Name { get; set; }
 
@@ -34,9 +33,8 @@ namespace Signum.Entities.Chart
 
         public int? ColumnIndex { get; set; }
 
-        [NotNullable, SqlDbType(Size = 200)]
         string valueDefinition;
-        [StringLengthValidator(AllowNulls = true, Max = 200)]
+        [StringLengthValidator(AllowNulls = true, Max = int.MaxValue)]
         public string ValueDefinition
         {
             get { return valueDefinition; }
@@ -153,13 +151,13 @@ namespace Signum.Entities.Chart
 
                 interval = new NumberInterval();
 
-                if (!ReflectionTools.TryParse<decimal>(m.Groups["def"].Value, CultureInfo.InvariantCulture, out interval.DefaultValue))
+                if (!ReflectionTools.TryParse(m.Groups["def"].Value, CultureInfo.InvariantCulture, out interval.DefaultValue))
                     return "Invalid default value";
 
-                if (!ReflectionTools.TryParse<decimal?>(m.Groups["min"].Value, CultureInfo.InvariantCulture, out interval.MinValue))
+                if (!ReflectionTools.TryParse(m.Groups["min"].Value, CultureInfo.InvariantCulture, out interval.MinValue))
                     return "Invalid min value";
 
-                if (!ReflectionTools.TryParse<decimal?>(m.Groups["max"].Value, CultureInfo.InvariantCulture, out interval.MaxValue))
+                if (!ReflectionTools.TryParse(m.Groups["max"].Value, CultureInfo.InvariantCulture, out interval.MaxValue))
                     return "Invalid max value";
 
                 return null;
@@ -172,8 +170,7 @@ namespace Signum.Entities.Chart
 
             public string Validate(string parameter)
             {
-                decimal value;
-                if (!decimal.TryParse(parameter, out value))
+                if (!decimal.TryParse(parameter, NumberStyles.Float, CultureInfo.InvariantCulture,  out decimal value))
                     return "{0} is not a valid number".FormatWith(parameter);
 
                 if (MinValue.HasValue && value < MinValue)
@@ -193,8 +190,7 @@ namespace Signum.Entities.Chart
                 list = new EnumValueList();
                 foreach (var item in valueDefinition.SplitNoEmpty('|'))
                 {
-                    EnumValue val;
-                    string error = EnumValue.TryParse(item, out val);
+                    string error = EnumValue.TryParse(item, out EnumValue val);
                     if (error.HasText())
                         return error;
 
@@ -209,13 +205,16 @@ namespace Signum.Entities.Chart
 
             internal string Validate(string parameter, QueryToken token)
             {
+                if (token == null)
+                    return null; //?
+
                 var enumValue = this.SingleOrDefault(a => a.Name == parameter);
 
                 if (enumValue == null)
                     return "{0} is not in the list".FormatWith(parameter);
 
                 if (!enumValue.CompatibleWith(token))
-                    return "{0} is not compatible with {1}".FormatWith(parameter, token.NiceName());
+                    return "{0} is not compatible with {1}".FormatWith(parameter, token?.NiceName());
 
                 return null;
             }
@@ -261,9 +260,8 @@ namespace Signum.Entities.Chart
                 if (!composedCode.HasText())
                     return null;
 
-                ChartColumnType filter;
 
-                string error = ChartColumnTypeUtils.TryParseComposed(composedCode, out filter);
+                string error = ChartColumnTypeUtils.TryParseComposed(composedCode, out ChartColumnType filter);
                 if (error.HasText())
                     return enumValue.Name + ": " + error;
 
@@ -278,9 +276,9 @@ namespace Signum.Entities.Chart
             }
         }
 
-        internal ChartScriptParameterEntity Clone()
+        internal ChartScriptParameterEmbedded Clone()
         {
-            return new ChartScriptParameterEntity
+            return new ChartScriptParameterEmbedded
             {
                 Name = Name,
                 Type = Type,

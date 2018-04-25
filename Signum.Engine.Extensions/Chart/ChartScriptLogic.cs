@@ -24,11 +24,9 @@ namespace Signum.Engine.Chart
         {
             if (sb.NotDefined(MethodInfo.GetCurrentMethod()))
             {
-                sb.Include<ChartScriptEntity>();
-
-                dqm.RegisterQuery(typeof(ChartScriptEntity), () =>
-                    from uq in Database.Query<ChartScriptEntity>()
-                    select new
+                sb.Include<ChartScriptEntity>()
+                    .WithSave(ChartScriptOperation.Save)
+                    .WithQuery(dqm, () => uq => new
                     {
                         Entity = uq,
                         uq.Id,
@@ -38,8 +36,15 @@ namespace Signum.Engine.Chart
                         uq.Icon,
                     });
 
-                Scripts = sb.GlobalLazy(() => Database.Query<ChartScriptEntity>().ToDictionary(a=>a.Name),
-                    new InvalidateWith(typeof(ChartScriptEntity)));
+                Scripts = sb.GlobalLazy(() =>
+                {
+                    var result = Database.Query<ChartScriptEntity>().ToDictionary(a => a.Name);
+                    foreach (var e in result.Values)
+                        if (e.Icon != null)
+                            e.Icon.Retrieve();
+
+                    return result;
+                }, new InvalidateWith(typeof(ChartScriptEntity)));
 
                 RegisterOperations();
             }
@@ -47,13 +52,6 @@ namespace Signum.Engine.Chart
 
         private static void RegisterOperations()
         {
-            new Graph<ChartScriptEntity>.Execute(ChartScriptOperation.Save)
-            {
-                AllowsNew = true,
-                Lite = false,
-                Execute = (cs, _) => { }
-            }.Register();
-
             new Graph<ChartScriptEntity>.ConstructFrom<ChartScriptEntity>(ChartScriptOperation.Clone)
             {
                 Construct = (cs, _) => new ChartScriptEntity
@@ -61,14 +59,14 @@ namespace Signum.Engine.Chart
                     Name = cs.Name,
                     GroupBy = cs.GroupBy,
                     Icon = cs.Icon,
-                    Parameters = cs.Parameters.Select(par => new ChartScriptParameterEntity
+                    Parameters = cs.Parameters.Select(par => new ChartScriptParameterEmbedded
                     {
                         ColumnIndex = par.ColumnIndex,
                         Name = par.Name,
                         Type = par.Type,
                         ValueDefinition = par.ValueDefinition
                     }).ToMList(),
-                    Columns = cs.Columns.Select(col => new ChartScriptColumnEntity
+                    Columns = cs.Columns.Select(col => new ChartScriptColumnEmbedded
                     {
                         ColumnType = col.ColumnType,
                         DisplayName = col.DisplayName,
@@ -142,7 +140,12 @@ namespace Signum.Engine.Chart
             Synchronizer.SynchronizeReplacing(new Replacements(), "scripts",
                 charts,
                 files,
-                (name, script) => script.ExportXml().Save(fileName(script)),
+                (name, script) => {
+                    if (script.Icon != null)
+                        script.Icon.Retrieve();
+
+                    script.ExportXml().Save(fileName(script));
+                },
                 (name, file) =>
                 {
                     if (AskYesNoAll("Remove {0} file?".FormatWith(name), ref options.RemoveOld))

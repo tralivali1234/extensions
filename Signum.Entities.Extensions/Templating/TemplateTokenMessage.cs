@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Signum.Entities.DynamicQuery;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
@@ -9,6 +10,7 @@ namespace Signum.Entities.Templating
 {
     public enum TemplateTokenMessage
     {
+        Insert,
         [Description("No column selected")]
         NoColumnSelected,
         [Description("You cannot add If blocks on collection fields")]
@@ -19,5 +21,36 @@ namespace Signum.Entities.Templating
         YouCanOnlyAddForeachBlocksWithCollectionFields,
         [Description("You cannot add Blocks with All or Any")]
         YouCannotAddBlocksWithAllOrAny
+    }
+
+
+    [Serializable]
+    public class MultiEntityModel : ModelEntity
+    {
+        [ImplementedByAll]
+        [NotNullValidator, NoRepeatValidator]
+        public MList<Lite<Entity>> Entities { get; set; } = new MList<Lite<Entity>>();
+    }
+
+    [Serializable]
+    public class QueryModel : ModelEntity
+    {
+        [NotNullValidator, InTypeScript(false)]
+        public object QueryName { get; set; }
+
+        [InTypeScript(false)]
+        public List<Filter> Filters { get; set; } = new List<Filter>();
+
+        [InTypeScript(false)]
+        public List<Order> Orders { get; set; } = new List<Order>();
+
+        [NotNullValidator, InTypeScript(false)]
+        public Pagination Pagination { get; set; }
+    }
+
+    public enum QueryModelMessage
+    {
+        [Description("Configure your query and press [Search] before [Ok]")]
+        ConfigureYourQueryAndPressSearchBeforeOk
     }
 }

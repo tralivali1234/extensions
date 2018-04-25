@@ -7,6 +7,7 @@ using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.ComTypes;
 using System.Reflection;
 using System.Windows;
+using Signum.Entities.Basics;
 
 namespace Signum.Windows.Extensions.Files
 {
@@ -17,12 +18,12 @@ namespace Signum.Windows.Extensions.Files
             return e.Data.GetDataPresent("FileGroupDescriptor");
         }
 
-        public static List<Tuple<string, byte[]>> DropOutlookAttachment(this DragEventArgs e)
+        public static List<FileContent> DropOutlookAttachment(this DragEventArgs e)
         {
             if (!e.CanHandleOutlookAttachment())
                 return null;
 
-            List<Tuple<string, byte[]>> response = new List<Tuple<string, byte[]>>(); 
+            List<FileContent> response = new List<FileContent>(); 
 
             OutlookDataObject dataObject = new OutlookDataObject(e.Data);
 
@@ -36,7 +37,7 @@ namespace Signum.Windows.Extensions.Files
 
                 byte[] data = ReadFully(filestream);
 
-                response.Add(new Tuple<string,byte[]>(filename, data));
+                response.Add(new FileContent(filename, data));
             }
 
             return response;
@@ -296,13 +297,14 @@ namespace Signum.Windows.Extensions.Files
 
         public MemoryStream GetData(string format, int index)
         {
-            FORMATETC formatetc = new FORMATETC();
-            formatetc.cfFormat = (short)DataFormats.GetDataFormat(format).Id;
-            formatetc.dwAspect = DVASPECT.DVASPECT_CONTENT;
-            formatetc.lindex = index;
-            formatetc.ptd = new IntPtr(0);
-            formatetc.tymed = TYMED.TYMED_ISTREAM | TYMED.TYMED_ISTORAGE | TYMED.TYMED_HGLOBAL;
-
+            FORMATETC formatetc = new FORMATETC()
+            {
+                cfFormat = (short)DataFormats.GetDataFormat(format).Id,
+                dwAspect = DVASPECT.DVASPECT_CONTENT,
+                lindex = index,
+                ptd = new IntPtr(0),
+                tymed = TYMED.TYMED_ISTREAM | TYMED.TYMED_ISTORAGE | TYMED.TYMED_HGLOBAL
+            };
             STGMEDIUM medium = new STGMEDIUM();
 
             this.comUnderlyingDataObject.GetData(ref formatetc, out medium);

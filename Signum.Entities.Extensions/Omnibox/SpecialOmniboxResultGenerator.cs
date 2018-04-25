@@ -11,9 +11,11 @@ namespace Signum.Entities.Omnibox
     {
         public OmniboxMatch Match { get; set; }
 
+        public string Key { get { return ((ISpecialOmniboxAction)Match.Value).Key; } }
+
         public override string ToString()
         {
-            return "!" + ((ISpecialOmniboxAction)Match.Value).Key;
+            return "!" + this.Key; 
         }
     }
 
@@ -46,7 +48,7 @@ namespace Signum.Entities.Omnibox
         {
             return new List<HelpOmniboxResult>
             {
-                new HelpOmniboxResult { Text = "!SpecialFunction", OmniboxResultType = typeof(SpecialOmniboxResult) },
+                new HelpOmniboxResult { Text = "!SpecialFunction", ReferencedType = typeof(SpecialOmniboxResult) },
             };
         }
     }

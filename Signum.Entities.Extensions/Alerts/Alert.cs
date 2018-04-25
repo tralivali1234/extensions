@@ -25,26 +25,23 @@ namespace Signum.Entities.Alerts
 
         public DateTime CreationDate { get; private set; } = TimeZoneManager.Now;
 
-        [NotNullable]
         [NotNullValidator]
         public DateTime? AlertDate { get; set; }
 
         public DateTime? AttendedDate { get; set; }
 
-        [SqlDbType(Size = 100)]
         [StringLengthValidator(AllowNulls = true, Max = 100)]
         public string Title { get; set; }
 
-        [NotNullable, SqlDbType(Size = int.MaxValue)]
         [StringLengthValidator(Min = 1, MultiLine = true)]
         public string Text { get; set; }
 
         public Lite<IUserEntity> CreatedBy { get; set; }
 
-        public Lite<IUserEntity> AttendedBy { get; set; }
+        public Lite<IUserEntity> Recipient { get; set; }
 
-        [NotNullable]
-        [NotNullValidator]
+        public Lite<IUserEntity> AttendedBy { get; set; }
+        
         public AlertTypeEntity AlertType { get; set; }
 
         public AlertState State { get; set; }
@@ -104,6 +101,7 @@ namespace Signum.Entities.Alerts
         Attended
     }
 
+    [InTypeScript(true), DescriptionOptions(DescriptionOptions.Members | DescriptionOptions.Description)]
     public enum AlertCurrentState
     {
         Attended,
@@ -115,10 +113,23 @@ namespace Signum.Entities.Alerts
     public static class AlertOperation
     {
         public static ConstructSymbol<AlertEntity>.From<Entity> CreateAlertFromEntity;
-        public static ExecuteSymbol<AlertEntity> SaveNew;
+        public static ConstructSymbol<AlertEntity>.Simple Create;
         public static ExecuteSymbol<AlertEntity> Save;
+        public static ExecuteSymbol<AlertEntity> Delay;
         public static ExecuteSymbol<AlertEntity> Attend;
         public static ExecuteSymbol<AlertEntity> Unattend;
+    }
+
+    [DescriptionOptions(DescriptionOptions.Members), InTypeScript(true)]
+    public enum DelayOption
+    {
+        _5Mins,
+        _15Mins,
+        _30Mins, 
+        _1Hour,
+        _2Hours,
+        _1Day,
+        Custom 
     }
 
     [Serializable, EntityKind(EntityKind.String, EntityData.Master)]
@@ -156,6 +167,9 @@ namespace Signum.Entities.Alerts
         [Description("Futures")]
         FutureAlerts,
         [Description("Warned")]
-        WarnedAlerts
+        WarnedAlerts,
+        CustomDelay,
+        DelayDuration,
+        MyActiveAlerts,
     }
 }

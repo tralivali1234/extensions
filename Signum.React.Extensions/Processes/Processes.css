@@ -1,0 +1,26 @@
+﻿.progressContainer
+{
+	padding: 3px;
+	border: solid 1px #BDBDBD;
+	width: 250px;
+	height:15px;
+}
+
+.progressBar
+{
+	background-color: #A9F5F2;
+	width: 0px;
+	height: auto;
+}
+
+.dropdown-menu button span.process-contextual-icon {
+    float: right;
+    font-size: initial;
+    margin-right: -10px;
+    margin-top: 2px;
+    color: gray;
+}
+
+.dropdown-menu button span.process-contextual-icon:hover {
+    color: black;
+}

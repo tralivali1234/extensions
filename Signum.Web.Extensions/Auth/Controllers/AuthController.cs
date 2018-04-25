@@ -18,6 +18,7 @@ using Signum.Engine.Mailing;
 using System.Collections.Generic;
 using Signum.Engine.Operations;
 using Signum.Web.Operations;
+using System.Security.Principal;
 
 namespace Signum.Web.Auth
 {
@@ -195,7 +196,7 @@ namespace Signum.Web.Auth
             {
                 UserEntity user = ResetPasswordRequestLogic.GetUserByEmail(email);
 
-                if(user == null)
+                if (user == null)
                 {
                     ModelState.AddModelError("email", AuthMessage.ThereSNotARegisteredUserWithThatEmailAddress.NiceToString());
                     return View(AuthClient.ResetPasswordView);
@@ -253,8 +254,13 @@ namespace Signum.Web.Auth
 
                 var context = user.ApplyChanges(this, UserMapping.ChangePassword, "").Validate();
 
-                if (!context.Errors.TryGetC(UserMapping.NewPasswordKey).IsNullOrEmpty() ||
-                    !context.Errors.TryGetC(UserMapping.NewPasswordBisKey).IsNullOrEmpty())
+
+                HashSet<string> errorNpk = null;
+                HashSet<string> errorNpbk = null;
+                context.Errors.TryGetValue(UserMapping.NewPasswordKey, out errorNpk);
+                context.Errors.TryGetValue(UserMapping.NewPasswordBisKey, out errorNpbk);
+
+                if (!errorNpk.IsNullOrEmpty() || !errorNpbk.IsNullOrEmpty())
                 {
                     ViewData["Title"] = AuthMessage.ChangePassword.NiceToString();
                     ModelState.FromContext(context);
@@ -316,7 +322,7 @@ namespace Signum.Web.Auth
             if (string.IsNullOrEmpty(password))
                 return LoginError("password", AuthMessage.PasswordMustHaveAValue.NiceToString());
 
-            if(UserEntity.Current != null)
+            if (UserEntity.Current != null)
             {
                 if (UserLoggingOut != null)
                     UserLoggingOut();
@@ -352,14 +358,13 @@ namespace Signum.Web.Auth
 
             OnUserPreLogin(this, user);
 
-            UserEntity.Current = user;
+            AddUserSession(user);
 
             if (rememberMe == true)
             {
                 UserTicketClient.SaveCookie();
             }
 
-            AddUserSession(user);
 
             TempData["Message"] = AuthLogic.OnLoginMessage();
 
@@ -376,13 +381,15 @@ namespace Signum.Web.Auth
             }
         }
 
+  
+
         public ViewResult LoginError(string key, string error)
         {
             ModelState.AddModelError(key, error);
             return View(AuthClient.LoginView);
         }
 
-      
+
         #endregion
 
 
@@ -422,8 +429,36 @@ namespace Signum.Web.Auth
                 UserLoggingOut();
 
             UserTicketClient.RemoveCookie();
-            
+
             httpContext.Session.Abandon();
         }
+    }
+
+
+
+    interface ICustomPrincipal : IPrincipal
+    {
+         string Id { get; set; }
+         string Name { get; set; }
+    }
+    public class CustomPrincipal : ICustomPrincipal
+    {
+        public IIdentity Identity { get; private set; }
+        public bool IsInRole(string role) { return false; }
+
+        public CustomPrincipal(string id)
+        {
+            this.Identity = new GenericIdentity(id);
+        }
+
+        public string Id { get; set; }
+        public string Name { get; set; }
+      
+    }
+    public class CustomPrincipalSerializeModel
+    {
+        public string Id { get; set; }
+        public string Name { get; set; }
+        
     }
 }

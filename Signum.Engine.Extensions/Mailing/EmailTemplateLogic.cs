@@ -24,14 +24,17 @@ using Signum.Entities.Basics;
 using Signum.Engine.Templating;
 using System.Net.Mail;
 using Signum.Utilities.ExpressionTrees;
+using Signum.Entities.Templating;
+using Signum.Entities.Reflection;
 
 namespace Signum.Engine.Mailing
 {
     public static class EmailTemplateLogic
     {
-        public static bool AvoidSynchronize = false;
+        public static bool AvoidSynchronizeTokens = false;
+        public static bool AvoidSynchronizeDefaultTemplates = true;
 
-        public static EmailTemplateMessageEntity GetCultureMessage(this EmailTemplateEntity template, CultureInfo ci)
+        public static EmailTemplateMessageEmbedded GetCultureMessage(this EmailTemplateEntity template, CultureInfo ci)
         {
             return template.Messages.SingleOrDefault(tm => tm.CultureInfo.ToCultureInfo() == ci);
         }
@@ -45,6 +48,34 @@ namespace Signum.Engine.Mailing
         }
         
         public static ResetLazy<Dictionary<Lite<EmailTemplateEntity>, EmailTemplateEntity>> EmailTemplatesLazy;
+        public static ResetLazy<Dictionary<object, List<EmailTemplateEntity>>> TemplatesByQueryName;
+
+
+        public static Polymorphic<Action<IAttachmentGeneratorEntity, FillAttachmentTokenContext>> FillAttachmentTokens =
+           new Polymorphic<Action<IAttachmentGeneratorEntity, FillAttachmentTokenContext>>();
+
+        public class FillAttachmentTokenContext
+        {
+            public QueryDescription QueryDescription;
+            public Type ModelType;
+            public List<QueryToken> QueryTokens;
+        }
+
+        public static Polymorphic<Func<IAttachmentGeneratorEntity, GenerateAttachmentContext, List<EmailAttachmentEmbedded>>> GenerateAttachment = 
+            new Polymorphic<Func<IAttachmentGeneratorEntity, GenerateAttachmentContext, List<EmailAttachmentEmbedded>>>();
+
+        public class GenerateAttachmentContext
+        {
+            public QueryDescription QueryDescription;
+            public Type ModelType;
+            public EmailTemplateEntity Template;
+            public IEntity Entity;
+            public ISystemEmail SystemEmail;
+            public CultureInfo Culture;
+            public Dictionary<QueryToken, ResultColumn> ResultColumns;
+            public IEnumerable<ResultRow> CurrentRows;
+        }
+
 
         public static Func<EmailTemplateEntity, SmtpConfigurationEntity> GetSmtpConfiguration;
 
@@ -53,35 +84,39 @@ namespace Signum.Engine.Mailing
             if (sb.NotDefined(MethodInfo.GetCurrentMethod()))
             {
                 CultureInfoLogic.AssertStarted(sb);
+                TemplatingLogic.Start(sb, dqm);
+
 
                 GetSmtpConfiguration = getSmtpConfiguration;
 
-                sb.Include<EmailTemplateEntity>();       
-
-                EmailTemplatesLazy = sb.GlobalLazy(() => Database.Query<EmailTemplateEntity>()
-                    .ToDictionary(et => et.ToLite()), new InvalidateWith(typeof(EmailTemplateEntity)));
-
-                SystemEmailLogic.Start(sb, dqm);
-                EmailMasterTemplateLogic.Start(sb, dqm);
-
-                dqm.RegisterQuery(typeof(EmailTemplateEntity), () =>
-                    from t in Database.Query<EmailTemplateEntity>()
-                    select new
+                sb.Include<EmailTemplateEntity>()
+                    .WithQuery(dqm, () => t => new
                     {
                         Entity = t,
                         t.Id,
                         t.Name,
-                        Active = t.IsActiveNow(),
                         t.IsBodyHtml
-                    });
+                    });       
 
+                EmailTemplatesLazy = sb.GlobalLazy(() => 
+                Database.Query<EmailTemplateEntity>().ToDictionary(et => et.ToLite())
+                , new InvalidateWith(typeof(EmailTemplateEntity)));
+                
+                TemplatesByQueryName = sb.GlobalLazy(() =>
+                {
+                    return EmailTemplatesLazy.Value.Values.GroupToDictionary(a => a.Query.ToQueryName());
+                }, new InvalidateWith(typeof(EmailTemplateEntity)));
+                
+                SystemEmailLogic.Start(sb, dqm);
+                EmailMasterTemplateLogic.Start(sb, dqm);
+                
                 sb.Schema.EntityEvents<EmailTemplateEntity>().PreSaving += new PreSavingEventHandler<EmailTemplateEntity>(EmailTemplate_PreSaving);
                 sb.Schema.EntityEvents<EmailTemplateEntity>().Retrieved += EmailTemplateLogic_Retrieved;
 
-                Validator.OverridePropertyValidator((EmailTemplateMessageEntity m) => m.Text).StaticPropertyValidation +=
+                Validator.OverridePropertyValidator((EmailTemplateMessageEmbedded m) => m.Text).StaticPropertyValidation +=
                     EmailTemplateMessageText_StaticPropertyValidation;
 
-                Validator.OverridePropertyValidator((EmailTemplateMessageEntity m) => m.Subject).StaticPropertyValidation +=
+                Validator.OverridePropertyValidator((EmailTemplateMessageEmbedded m) => m.Subject).StaticPropertyValidation +=
                     EmailTemplateMessageSubject_StaticPropertyValidation;
 
                 EmailTemplateGraph.Register();
@@ -97,7 +132,7 @@ namespace Signum.Engine.Mailing
 
                 Validator.PropertyValidator<EmailTemplateEntity>(et => et.Messages).StaticPropertyValidation += (et, pi) =>
                 {
-                    if (et.Active && !et.Messages.Any(m => m.CultureInfo.Is(EmailLogic.Configuration.DefaultCulture)))
+                    if (!et.Messages.Any(m => m.CultureInfo.Is(EmailLogic.Configuration.DefaultCulture)))
                         return EmailTemplateMessage.ThereMustBeAMessageFor0.NiceToString().FormatWith(EmailLogic.Configuration.DefaultCulture.EnglishName);
 
                     return null;
@@ -140,14 +175,13 @@ namespace Signum.Engine.Mailing
             }
         }
 
-        static string EmailTemplateMessageText_StaticPropertyValidation(EmailTemplateMessageEntity message, PropertyInfo pi)
+        static string EmailTemplateMessageText_StaticPropertyValidation(EmailTemplateMessageEmbedded message, PropertyInfo pi)
         {
             if (message.TextParsedNode as EmailTemplateParser.BlockNode == null)
             {
                 try
                 {
-                    string errorMessage;
-                    message.TextParsedNode = ParseTemplate(message.Template, message.Text, out errorMessage);
+                    message.TextParsedNode = ParseTemplate((EmailTemplateEntity)message.GetParentEntity(), message.Text, out string errorMessage);
                     return errorMessage.DefaultText(null);
                 }
                 catch (Exception ex)
@@ -159,14 +193,13 @@ namespace Signum.Engine.Mailing
             return null;
         }
 
-        static string EmailTemplateMessageSubject_StaticPropertyValidation(EmailTemplateMessageEntity message, PropertyInfo pi)
+        static string EmailTemplateMessageSubject_StaticPropertyValidation(EmailTemplateMessageEmbedded message, PropertyInfo pi)
         {
             if (message.SubjectParsedNode as EmailTemplateParser.BlockNode == null)
             {
                 try
                 {
-                    string errorMessage;
-                    message.SubjectParsedNode = ParseTemplate(message.template, message.Subject, out errorMessage);
+                    message.SubjectParsedNode = ParseTemplate((EmailTemplateEntity)message.GetParentEntity(), message.Subject, out string errorMessage);
                     return errorMessage.DefaultText(null);
                 }
                 catch (Exception ex)
@@ -178,7 +211,7 @@ namespace Signum.Engine.Mailing
             return null;
         }
 
-        private static EmailTemplateParser.BlockNode ParseTemplate(EmailTemplateEntity template, string text, out string errorMessage)
+        public static EmailTemplateParser.BlockNode ParseTemplate(EmailTemplateEntity template, string text, out string errorMessage)
         {
             using (template.DisableAuthorization ? ExecutionMode.Global() : null)
             {
@@ -190,7 +223,7 @@ namespace Signum.Engine.Mailing
             }
         }
 
-        static void EmailTemplate_PreSaving(EmailTemplateEntity template, ref bool graphModified)
+        static void EmailTemplate_PreSaving(EmailTemplateEntity template, PreSavingContext ctx)
         {
             using (template.DisableAuthorization ? ExecutionMode.Global() : null)
             {
@@ -207,9 +240,22 @@ namespace Signum.Engine.Mailing
             }
         }
 
-        public static IEnumerable<EmailMessageEntity> CreateEmailMessage(this Lite<EmailTemplateEntity> liteTemplate, IEntity entity, ISystemEmail systemEmail = null)
+        public static IEnumerable<EmailMessageEntity> CreateEmailMessage(this Lite<EmailTemplateEntity> liteTemplate, ModifiableEntity model = null, ISystemEmail systemEmail = null)
         {
             EmailTemplateEntity template = EmailTemplatesLazy.Value.GetOrThrow(liteTemplate, "Email template {0} not in cache".FormatWith(liteTemplate));
+
+            Entity entity = null;
+            if (template.SystemEmail != null)
+            {
+                if (systemEmail == null)
+                    systemEmail = SystemEmailLogic.CreateSystemEmail(template.SystemEmail, model);
+                else if (template.SystemEmail.ToType() != systemEmail.GetType())
+                    throw new ArgumentException("systemEmail should be a {0} instead of {1}".FormatWith(template.SystemEmail.FullClassName, systemEmail.GetType().FullName));
+            }
+            else
+            {
+                entity = model as Entity ?? throw new InvalidOperationException("Model should be an Entity");
+            }
 
             using (template.DisableAuthorization ? ExecutionMode.Global() : null)
                 return new EmailMessageBuilder(template, entity, systemEmail).CreateEmailMessageInternal().ToList();
@@ -237,16 +283,9 @@ namespace Signum.Engine.Mailing
                     Execute = (t, _) => { }
                 }.Register();
 
-                new Execute(EmailTemplateOperation.Enable) 
+                new Delete(EmailTemplateOperation.Delete)
                 {
-                    CanExecute = t => t.Active ? EmailTemplateMessage.TheTemplateIsAlreadyActive.NiceToString() : null,
-                    Execute = (t, _) => t.Active = true
-                }.Register();
-
-                new Execute(EmailTemplateOperation.Disable) 
-                {
-                    CanExecute = t => !t.Active ? EmailTemplateMessage.TheTemplateIsAlreadyInactive.NiceToString() : null,
-                    Execute = (t, _) => t.Active = false
+                    Delete = (t, _) => t.Delete()
                 }.Register();
 
                 registered = true;
@@ -255,7 +294,7 @@ namespace Signum.Engine.Mailing
 
         static SqlPreCommand Schema_Synchronize_Tokens(Replacements replacements)
         {
-            if (AvoidSynchronize)
+            if (AvoidSynchronizeTokens)
                 return null;
 
             StringDistance sd = new StringDistance();
@@ -271,12 +310,12 @@ namespace Signum.Engine.Mailing
 
         static SqlPreCommand Schema_Syncronize_DefaultTemplates(Replacements replacements)
         {
-            if (AvoidSynchronize)
+            if (AvoidSynchronizeDefaultTemplates)
                 return null;
 
             var table = Schema.Current.Table(typeof(EmailTemplateEntity));
 
-            var systemEmails = Database.Query<SystemEmailEntity>().Where(se => !se.EmailTemplates().Any(a => a.Active)).ToList();
+            var systemEmails = Database.Query<SystemEmailEntity>().Where(se => !se.EmailTemplates().Any()).ToList();
 
             string cis = Database.Query<CultureInfoEntity>().Select(a => a.Name).ToString(", ").Etc(60);
 
@@ -309,7 +348,7 @@ namespace Signum.Engine.Mailing
 
         public static void GenerateDefaultTemplates()
         {
-            var systemEmails = Database.Query<SystemEmailEntity>().Where(se => !se.EmailTemplates().Any(a => a.Active)).ToList();
+            var systemEmails = Database.Query<SystemEmailEntity>().Where(se => !se.EmailTemplates().Any()).ToList();
 
             List<string> exceptions = new List<string>();
 
@@ -339,5 +378,41 @@ namespace Signum.Engine.Mailing
             leaves.ExecuteLeaves();
             return true;
         }
+
+        public static Dictionary<Type, EmailTemplateVisibleOn> VisibleOnDictionary = new Dictionary<Type, EmailTemplateVisibleOn>()
+        {
+            { typeof(MultiEntityModel), EmailTemplateVisibleOn.Single | EmailTemplateVisibleOn.Multiple},
+            { typeof(QueryModel), EmailTemplateVisibleOn.Single | EmailTemplateVisibleOn.Multiple| EmailTemplateVisibleOn.Query},
+        };
+
+        public static bool IsVisible(EmailTemplateEntity et, EmailTemplateVisibleOn visibleOn)
+        {
+            if (et.SystemEmail == null)
+                return visibleOn == EmailTemplateVisibleOn.Single;
+
+            if (SystemEmailLogic.HasDefaultTemplateConstructor(et.SystemEmail))
+                return false;
+
+            var entityType = SystemEmailLogic.GetEntityType(et.SystemEmail.ToType());
+
+            if (entityType.IsEntity())
+                return visibleOn == EmailTemplateVisibleOn.Single;
+
+            var should = VisibleOnDictionary.TryGet(entityType, EmailTemplateVisibleOn.Single);
+
+            return ((should & visibleOn) != 0);
+        }
+
+
+        public static List<Lite<EmailTemplateEntity>> GetApplicableEmailTemplates(object queryName, Entity entity, EmailTemplateVisibleOn visibleOn)
+        {
+            var isAllowed = Schema.Current.GetInMemoryFilter<EmailTemplateEntity>(userInterface: true);
+            return TemplatesByQueryName.Value.TryGetC(queryName).EmptyIfNull()
+                .Where(a => isAllowed(a) && IsVisible(a, visibleOn))
+                .Where(a => a.IsApplicable(entity))
+                .Select(a => a.ToLite())
+                .ToList();
+        }
+
     }
 }

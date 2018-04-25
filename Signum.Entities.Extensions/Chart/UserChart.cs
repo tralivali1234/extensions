@@ -11,6 +11,7 @@ using System.Xml.Linq;
 using Signum.Entities.UserAssets;
 using System.Reflection;
 using Signum.Utilities.ExpressionTrees;
+using Signum.Entities;
 
 namespace Signum.Entities.Chart
 {
@@ -19,7 +20,7 @@ namespace Signum.Entities.Chart
         Lite<TypeEntity> EntityType { get; }
     }
 
-    [Serializable, EntityKind(EntityKind.Main, EntityData.Master)]
+    [Serializable, EntityKind(EntityKind.Main, EntityData.Master), InTypeScript(Undefined = false)]
     public class UserChartEntity : Entity, IChartBase, IHasEntitytype, IUserAssetEntity
     {
         public UserChartEntity() { }
@@ -38,19 +39,18 @@ namespace Signum.Entities.Chart
         [Ignore]
         internal object queryName;
 
-        [NotNullable]
         [NotNullValidator]
         public QueryEntity Query { get; set; }
 
         public Lite<TypeEntity> EntityType { get; set; }
 
+        public bool HideQuickLink { get; set; }
+
         public Lite<Entity> Owner { get; set; }
 
-        [NotNullable, SqlDbType(Size = 100)]
-        [StringLengthValidator(AllowNulls = false, Min = 3, Max = 100)]
+        [StringLengthValidator(AllowNulls = false, Min = 3, Max = 200)]
         public string DisplayName { get; set; }
 
-        [NotNullable]
         ChartScriptEntity chartScript;
         [NotNullValidator]
         public ChartScriptEntity ChartScript
@@ -60,15 +60,14 @@ namespace Signum.Entities.Chart
             {
                 if (Set(ref chartScript, value))
                 {
-                    chartScript.SyncronizeColumns(this);
+                    chartScript.SynchronizeColumns(this);
                     NotifyAllColumns();
                 }
             }
         }
 
-        [NotNullable]
         [NotNullValidator, NoRepeatValidator]
-        public MList<ChartParameterEntity> Parameters { get; set; } = new MList<ChartParameterEntity>();
+        public MList<ChartParameterEmbedded> Parameters { get; set; } = new MList<ChartParameterEmbedded>();
 
         bool groupResults = true;
         public bool GroupResults
@@ -83,8 +82,8 @@ namespace Signum.Entities.Chart
             }
         }
 
-        [NotifyCollectionChanged, ValidateChildProperty, NotNullable, PreserveOrder]
-        public MList<ChartColumnEntity> Columns { get; set; } = new MList<ChartColumnEntity>();
+        [NotifyCollectionChanged, NotifyChildProperty, PreserveOrder]
+        public MList<ChartColumnEmbedded> Columns { get; set; } = new MList<ChartColumnEmbedded>();
 
         void NotifyAllColumns()
         {
@@ -94,11 +93,11 @@ namespace Signum.Entities.Chart
             }
         }
 
-        [NotNullable, PreserveOrder]
-        public MList<QueryFilterEntity> Filters { get; set; } = new MList<QueryFilterEntity>();
+        [NotNullValidator, PreserveOrder]
+        public MList<QueryFilterEmbedded> Filters { get; set; } = new MList<QueryFilterEmbedded>();
 
-        [NotNullable, PreserveOrder]
-        public MList<QueryOrderEntity> Orders { get; set; } = new MList<QueryOrderEntity>();
+        [NotNullValidator, PreserveOrder]
+        public MList<QueryOrderEmbedded> Orders { get; set; } = new MList<QueryOrderEmbedded>();
 
         [UniqueIndex]
         public Guid Guid { get; set; } = Guid.NewGuid();
@@ -136,7 +135,14 @@ namespace Signum.Entities.Chart
 
         protected override void PostRetrieving()
         {
-            chartScript.SyncronizeColumns(this);
+            try
+            {
+                chartScript.SynchronizeColumns(this);
+            }
+            catch (InvalidOperationException e) when (e.Message.Contains("sealed"))
+            {
+                throw new InvalidOperationException($"Error Synchronizing columns for '{this}'. Maybe the ChartScript has changed. Consider opening UserChart and saving it again.");
+            }
         }
 
         public void InvalidateResults(bool needNewQuery)
@@ -152,7 +158,8 @@ namespace Signum.Entities.Chart
                 new XAttribute("Guid", Guid),
                 new XAttribute("DisplayName", DisplayName),
                 new XAttribute("Query", Query.Key),
-                EntityType == null ? null : new XAttribute("EntityType", EntityType.Key()),
+                EntityType == null ? null : new XAttribute("EntityType", ctx.TypeToName(EntityType)),
+                new XAttribute("HideQuickLink", HideQuickLink),
                 Owner == null ? null : new XAttribute("Owner", Owner.Key()),
                 new XAttribute("ChartScript", ChartScript.Name),
                 new XAttribute("GroupResults", GroupResults),
@@ -166,20 +173,21 @@ namespace Signum.Entities.Chart
         {
             DisplayName = element.Attribute("DisplayName").Value;
             Query = ctx.GetQuery(element.Attribute("Query").Value);
-            EntityType = element.Attribute("EntityType")?.Let(a => Lite.Parse<TypeEntity>(a.Value));
+            EntityType = element.Attribute("EntityType")?.Let(a => ctx.GetType(a.Value));
+            HideQuickLink = element.Attribute("HideQuickLink")?.Let(a => bool.Parse(a.Value)) ?? false;
             Owner = element.Attribute("Owner")?.Let(a => Lite.Parse(a.Value));
             ChartScript = ctx.ChartScript(element.Attribute("ChartScript").Value);
             GroupResults = bool.Parse(element.Attribute("GroupResults").Value);
-            Filters.Syncronize((element.Element("Filters")?.Elements()).EmptyIfNull().ToList(), (f, x) => f.FromXml(x, ctx));
-            Columns.Syncronize((element.Element("Columns")?.Elements()).EmptyIfNull().ToList(), (c, x) => c.FromXml(x, ctx));
-            Orders.Syncronize((element.Element("Orders")?.Elements()).EmptyIfNull().ToList(), (o, x) => o.FromXml(x, ctx));
-            Parameters.Syncronize((element.Element("Parameters")?.Elements()).EmptyIfNull().ToList(), (p, x) => p.FromXml(x, ctx));
+            Filters.Synchronize(element.Element("Filters")?.Elements().ToList(), (f, x) => f.FromXml(x, ctx));
+            Columns.Synchronize(element.Element("Columns")?.Elements().ToList(), (c, x) => c.FromXml(x, ctx));
+            Orders.Synchronize(element.Element("Orders")?.Elements().ToList(), (o, x) => o.FromXml(x, ctx));
+            Parameters.Synchronize(element.Element("Parameters")?.Elements().ToList(), (p, x) => p.FromXml(x, ctx));
             ParseData(ctx.GetQueryDescription(Query));
         }
 
-        public void FixParameters(ChartColumnEntity chartColumnEntity)
+        public void FixParameters(ChartColumnEmbedded chartColumn)
         {
-
+            ChartUtils.FixParameters(this, chartColumn);
         }
 
         protected override string PropertyValidation(PropertyInfo pi)

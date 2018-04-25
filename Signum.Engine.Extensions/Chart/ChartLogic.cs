@@ -18,6 +18,8 @@ using Signum.Entities.Authorization;
 using Signum.Engine.Authorization;
 using Signum.Entities.Reflection;
 using Signum.Engine.Operations;
+using System.Threading.Tasks;
+using System.Threading;
 
 namespace Signum.Engine.Chart
 {
@@ -27,7 +29,7 @@ namespace Signum.Engine.Chart
         {
             if (sb.NotDefined(MethodInfo.GetCurrentMethod()))
             {
-                QueryLogic.Start(sb);
+                QueryLogic.Start(sb, dqm);
 
                 PermissionAuthLogic.RegisterTypes(typeof(ChartPermission));
 
@@ -37,12 +39,39 @@ namespace Signum.Engine.Chart
             }
         }
 
+        public static Task<ResultTable> ExecuteChartAsync(ChartRequest request, CancellationToken token)
+        {
+            IDynamicQueryCore core = DynamicQueryManager.Current.TryGetQuery(request.QueryName).Core.Value;
+
+            return miExecuteChartAsync.GetInvoker(core.GetType().GetGenericArguments()[0])(request, core, token);
+        }
+
+        static GenericInvoker<Func<ChartRequest, IDynamicQueryCore, CancellationToken, Task<ResultTable>>> miExecuteChartAsync =
+            new GenericInvoker<Func<ChartRequest, IDynamicQueryCore, CancellationToken, Task<ResultTable>>>((req, dq, token) => ExecuteChartAsync<int>(req, (DynamicQueryCore<int>)dq, token));
+        static async Task<ResultTable> ExecuteChartAsync<T>(ChartRequest request, DynamicQueryCore<T> dq, CancellationToken token)
+        {
+            List<Column> columns = request.Columns.Where(c => c.Token != null).Select(t => t.CreateColumn()).ToList();
+
+            var multiplications = request.Multiplications;;
+            using (ExecutionMode.UserInterface())
+            {
+                return await dq.ExecuteQueryAsync(new QueryRequest
+                {
+                    GroupResults = request.GroupResults,
+                    QueryName = request.QueryName,
+                    Columns = columns,
+                    Filters = request.Filters,
+                    Orders = request.Orders,
+                    Pagination = new Pagination.All(),
+                }, token);
+            }
+        }
+
         public static ResultTable ExecuteChart(ChartRequest request)
         {
             IDynamicQueryCore core = DynamicQueryManager.Current.TryGetQuery(request.QueryName).Core.Value;
 
-            using (ExecutionMode.UserInterface())
-                return miExecuteChart.GetInvoker(core.GetType().GetGenericArguments()[0])(request, core);
+            return miExecuteChart.GetInvoker(core.GetType().GetGenericArguments()[0])(request, core);
         }
 
         static GenericInvoker<Func<ChartRequest, IDynamicQueryCore, ResultTable>> miExecuteChart =
@@ -51,28 +80,18 @@ namespace Signum.Engine.Chart
         {
             List<Column> columns = request.Columns.Where(c => c.Token != null).Select(t => t.CreateColumn()).ToList();
 
-            var multiplications = request.Multiplications;;
-
-            if (!request.GroupResults)
+            var multiplications = request.Multiplications; ;
+            using (ExecutionMode.UserInterface())
             {
                 return dq.ExecuteQuery(new QueryRequest
                 {
+                    GroupResults = request.GroupResults,
                     QueryName = request.QueryName,
                     Columns = columns,
                     Filters = request.Filters,
                     Orders = request.Orders,
                     Pagination = new Pagination.All(),
                 });
-            }
-            else
-            {
-                return dq.ExecuteQueryGroup(new QueryGroupRequest
-                {
-                    QueryName = request.QueryName,
-                    Columns = columns, 
-                    Filters = request.Filters,
-                    Orders = request.Orders
-                }); 
             }
         }
     }

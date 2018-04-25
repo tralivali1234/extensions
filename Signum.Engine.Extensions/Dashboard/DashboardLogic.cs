@@ -1,23 +1,21 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using Signum.Engine.Maps;
-using Signum.Engine.DynamicQuery;
-using System.Reflection;
-using Signum.Entities.Dashboard;
-using Signum.Entities;
-using Signum.Entities.Authorization;
-using Signum.Utilities;
-using Signum.Engine.Authorization;
+﻿using Signum.Engine.Authorization;
 using Signum.Engine.Basics;
-using Signum.Engine.UserQueries;
+using Signum.Engine.DynamicQuery;
+using Signum.Engine.Maps;
 using Signum.Engine.Operations;
-using Signum.Entities.UserQueries;
-using Signum.Entities.Chart;
-using Signum.Entities.Basics;
 using Signum.Engine.UserAssets;
 using Signum.Engine.ViewLog;
+using Signum.Entities;
+using Signum.Entities.Authorization;
+using Signum.Entities.Basics;
+using Signum.Entities.Chart;
+using Signum.Entities.Dashboard;
+using Signum.Entities.UserQueries;
+using Signum.Utilities;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
 
 namespace Signum.Engine.Dashboard
 {
@@ -30,44 +28,42 @@ namespace Signum.Engine.Dashboard
         {
             if (sb.NotDefined(MethodInfo.GetCurrentMethod()))
             {
+
+                GetDashboard = GetDashboardDefault;
+
                 PermissionAuthLogic.RegisterPermissions(DashboardPermission.ViewDashboard);
 
-                UserAssetsImporter.UserAssetNames.Add("Dashboard", typeof(DashboardEntity));
+                UserAssetsImporter.RegisterName<DashboardEntity>("Dashboard");
 
                 UserAssetsImporter.PartNames.AddRange(new Dictionary<string, Type>
                 {
                     {"UserChartPart", typeof(UserChartPartEntity)},
                     {"UserQueryPart", typeof(UserQueryPartEntity)},
                     {"LinkListPart", typeof(LinkListPartEntity)},
-                    {"CountSearchControlPart", typeof(CountSearchControlPartEntity)},
+                    {"ValueUserQueryListPart", typeof(ValueUserQueryListPartEntity)},
                 });
 
-                sb.Include<DashboardEntity>();
-
-
-                dqm.RegisterQuery(typeof(DashboardEntity), () =>
-                    from cp in Database.Query<DashboardEntity>()
-                    select new
+                sb.Include<DashboardEntity>()
+                    .WithQuery(dqm, () => cp => new
                     {
                         Entity = cp,
                         cp.Id,
                         cp.DisplayName,
                         cp.EntityType,
-                        Related = cp.Owner,
+                        cp.Owner,
+                        cp.DashboardPriority,
                     });
 
-                dqm.RegisterQuery(typeof(LinkListPartEntity), () =>
-                    from cp in Database.Query<LinkListPartEntity>()
-                    select new
+                sb.Include<LinkListPartEntity>()
+                    .WithQuery(dqm, () => cp => new
                     {
                         Entity = cp,
                         ToStr = cp.ToString(),
                         Links = cp.Links.Count
                     });
-
-                dqm.RegisterQuery(typeof(CountSearchControlPartEntity), () =>
-                    from cp in Database.Query<CountSearchControlPartEntity>()
-                    select new
+                
+                sb.Include<ValueUserQueryListPartEntity>()
+                    .WithQuery(dqm, () => cp => new
                     {
                         Entity = cp,
                         ToStr = cp.ToString(),
@@ -80,13 +76,14 @@ namespace Signum.Engine.Dashboard
                     {
                         Database.MListQuery((DashboardEntity cp) => cp.Parts).Where(mle => query.Contains(((UserQueryPartEntity)mle.Element.Content).UserQuery)).UnsafeDeleteMList();
                         Database.Query<UserQueryPartEntity>().Where(uqp => query.Contains(uqp.UserQuery)).UnsafeDelete();
+                        return null;
                     };
 
                     sb.Schema.Table<UserQueryEntity>().PreDeleteSqlSync += arg =>
                     {
                         var uq = (UserQueryEntity)arg;
 
-                        var parts = Administrator.UnsafeDeletePreCommand(Database.MListQuery((DashboardEntity cp) => cp.Parts)
+                        var parts = Administrator.UnsafeDeletePreCommandMList((DashboardEntity cp) => cp.Parts, Database.MListQuery((DashboardEntity cp) => cp.Parts)
                             .Where(mle => ((UserQueryPartEntity)mle.Element.Content).UserQuery == uq));
 
                         var parts2 = Administrator.UnsafeDeletePreCommand(Database.Query<UserQueryPartEntity>()
@@ -102,13 +99,14 @@ namespace Signum.Engine.Dashboard
                     {
                         Database.MListQuery((DashboardEntity cp) => cp.Parts).Where(mle => query.Contains(((UserChartPartEntity)mle.Element.Content).UserChart)).UnsafeDeleteMList();
                         Database.Query<UserChartPartEntity>().Where(uqp => query.Contains(uqp.UserChart)).UnsafeDelete();
+                        return null;
                     };
 
                     sb.Schema.Table<UserChartEntity>().PreDeleteSqlSync += arg =>
                     {
                         var uc = (UserChartEntity)arg;
 
-                        var parts = Administrator.UnsafeDeletePreCommand(Database.MListQuery((DashboardEntity cp) => cp.Parts)
+                        var parts = Administrator.UnsafeDeletePreCommandMList((DashboardEntity cp) => cp.Parts, Database.MListQuery((DashboardEntity cp) => cp.Parts)
                             .Where(mle => ((UserChartPartEntity)mle.Element.Content).UserChart == uc));
 
                         var parts2 = Administrator.UnsafeDeletePreCommand(Database.Query<UserChartPartEntity>()
@@ -165,18 +163,35 @@ namespace Signum.Engine.Dashboard
 
         public static DashboardEntity GetHomePageDashboard()
         {
-            var isAllowed = Schema.Current.GetInMemoryFilter<DashboardEntity>(userInterface: true);
-
-            var result =  Dashboards.Value.Values
-                .Where(d => d.EntityType == null && d.DashboardPriority.HasValue && isAllowed(d))
-                .OrderByDescending(a => a.DashboardPriority)
-                .FirstOrDefault();
+            var result = GetDashboard(false, null);
 
             if (result == null)
                 return null;
 
             using (ViewLogLogic.LogView(result.ToLite(), "GetHomePageDashboard"))
                 return result;
+        }
+
+        public static DashboardEntity GetNavbarDashboard(string key)
+        {
+            return GetDashboard(true, key);
+        }
+
+        public static Func<bool, string, DashboardEntity> GetDashboard;
+
+        static DashboardEntity GetDashboardDefault(bool forNavbar, string key)
+        {
+            var isAllowed = Schema.Current.GetInMemoryFilter<DashboardEntity>(userInterface: true);
+
+            var result = Dashboards.Value.Values
+                .Where(d =>
+                    d.ForNavbar == forNavbar
+                     && (!key.HasText() || d.Key == key)
+                    && d.EntityType == null && d.DashboardPriority.HasValue && isAllowed(d))
+                .OrderByDescending(a => a.DashboardPriority)
+                .FirstOrDefault();
+
+            return result;
         }
 
         public static DashboardEntity GetEmbeddedDashboard(Type entityType)
@@ -251,7 +266,7 @@ namespace Signum.Engine.Dashboard
 
         public static void RegisterPartsTypeCondition(TypeConditionSymbol typeCondition)
         {
-            TypeConditionLogic.Register<CountSearchControlPartEntity>(typeCondition,
+            TypeConditionLogic.Register<ValueUserQueryListPartEntity>(typeCondition,
                  cscp => Database.Query<DashboardEntity>().WhereCondition(typeCondition).Any(cp => cp.ContainsContent(cscp)));
 
             TypeConditionLogic.Register<LinkListPartEntity>(typeCondition,

@@ -41,8 +41,7 @@ namespace Signum.Windows.UserQueries
 
             var currentEntity = UserAssetsClient.GetCurrentEntity(s);
 
-            var csc = s as CountSearchControl;
-            if (csc != null)
+            if (s is CountSearchControl csc)
             {
                 csc.QueryName = QueryClient.GetQueryName(uc.Query.Key);
                 using (currentEntity == null ? null : CurrentEntityConverter.SetCurrentEntity(currentEntity))
@@ -51,12 +50,11 @@ namespace Signum.Windows.UserQueries
                 return;
             }
 
-            var sc = s as SearchControl;
-            if (sc != null && sc.ShowHeader == false)
+            if (s is SearchControl sc && sc.ShowHeader == false)
             {
                 sc.QueryName = QueryClient.GetQueryName(uc.Query.Key);
                 using (currentEntity == null ? null : CurrentEntityConverter.SetCurrentEntity(currentEntity))
-                UserQueryClient.ToSearchControl(uc, sc);
+                    UserQueryClient.ToSearchControl(uc, sc);
                 sc.Search();
                 return;
             }
@@ -147,7 +145,7 @@ namespace Signum.Windows.UserQueries
              {
                  ColumnName = qf.Token.Token.FullKey(),
                  Operation = qf.Operation,
-                 Value = Signum.Entities.UserAssets.FilterValueConverter.Parse(qf.ValueString, qf.Token.Token.Type, qf.Operation == FilterOperation.IsIn)
+                 Value = Signum.Entities.UserAssets.FilterValueConverter.Parse(qf.ValueString, qf.Token.Token.Type, isList: qf.Operation.IsList(), allowSmart: true)
              })).ToList();
 
             var columns = uq.Columns.Select(qc => new ColumnOption
@@ -174,7 +172,7 @@ namespace Signum.Windows.UserQueries
                 {
                     ColumnName = qf.Token.Token.FullKey(),
                     Operation = qf.Operation,
-                    Value = Signum.Entities.UserAssets.FilterValueConverter.Parse(qf.ValueString, qf.Token.Token.Type, qf.Operation == FilterOperation.IsIn)
+                    Value = Signum.Entities.UserAssets.FilterValueConverter.Parse(qf.ValueString, qf.Token.Token.Type, isList: qf.Operation.IsList(), allowSmart: true)
                 })).ToList();
 
             var columns = uq.Columns.Select(qc => new ColumnOption
