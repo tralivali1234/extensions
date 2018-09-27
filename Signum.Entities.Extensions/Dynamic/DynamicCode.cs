@@ -1,5 +1,5 @@
-﻿using Signum.Utilities;
-using System;
+﻿using System;
+using Signum.Utilities;
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.IO;
@@ -21,10 +21,13 @@ namespace Signum.Entities.Dynamic
         public static HashSet<string> Namespaces = new HashSet<string>
         {
             "System",
+            "System.IO",
             "System.Linq",
             "System.Reflection",
             "System.Collections.Generic",
             "System.Linq.Expressions",
+            "System.ComponentModel",
+            "System.Globalization",
             "Signum.Engine",
             "Signum.Entities",
             "Signum.Entities.Basics",
@@ -34,6 +37,7 @@ namespace Signum.Entities.Dynamic
             "Signum.Engine.Operations",
             "Signum.Engine.Workflow",
             "Signum.Utilities",
+            "Signum.Utilities.Reflection",
             "Signum.Engine.Authorization",
             "Signum.Engine.Notes",
             "Signum.Engine.Alerts",
@@ -75,6 +79,9 @@ namespace Signum.Entities.Dynamic
             "Signum.Entities.Word",
             "Signum.Entities.Workflow",
             "Signum.Entities.Tree",
+            "DocumentFormat.OpenXml",
+            "DocumentFormat.OpenXml.Packaging",
+            "DocumentFormat.OpenXml.Spreadsheet",
         };
 
         public static HashSet<string> Assemblies = new HashSet<string>
@@ -88,7 +95,6 @@ namespace Signum.Entities.Dynamic
             "Newtonsoft.Json.dll",
             "Microsoft.CodeDom.Providers.DotNetCompilerPlatform.dll",
             "DocumentFormat.OpenXml.dll",
-
         };
 
         public static IEnumerable<string> GetAssemblies()
@@ -118,6 +124,8 @@ namespace Signum.Entities.Dynamic
         }
 
         public static Func<string, List<CompilerError>> GetCustomErrors;
+
+        public static Action OnInvalidated { get; internal set; }
 
         public static void AddFullAssembly(Assembly assembly)
         {

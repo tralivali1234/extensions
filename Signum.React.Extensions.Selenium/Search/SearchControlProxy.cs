@@ -23,7 +23,7 @@ namespace Signum.React.Selenium
         {
             this.Selenium = element.GetDriver();
             this.Element = element;
-            this.Results = new ResultTableProxy(this.Element.FindElement(By.ClassName("sf-search-results-container")), this);
+            this.Results = new ResultTableProxy(this.Element.FindElement(By.ClassName("sf-scroll-table-container")), this);
         }
 
         public WebElementLocator SearchButton
@@ -92,7 +92,7 @@ namespace Signum.React.Selenium
 
         public WebElementLocator ContextualMenu => this.Element.WithLocator(By.ClassName("sf-context-menu"));
 
-        public FilterOptionProxy AddQuickFilter(int rowIndex, string token)
+        public FilterConditionOptionProxy AddQuickFilter(int rowIndex, string token)
         {
             Results.CellElement(rowIndex, token).Find().ContextClick();
 
@@ -101,7 +101,7 @@ namespace Signum.React.Selenium
             return this.Filters.GetNewFilter(() => menuItem.Click());
         }
 
-        public FilterOptionProxy AddQuickFilter(string token)
+        public FilterConditionOptionProxy AddQuickFilter(string token)
         {
             Results.HeaderCellElement(token).Find().ContextClick();
 

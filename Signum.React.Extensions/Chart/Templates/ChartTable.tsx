@@ -1,9 +1,10 @@
 ﻿import * as React from 'react'
-import * as Finder from '../../../../Framework/Signum.React/Scripts/Finder'
-import * as Navigator from '../../../../Framework/Signum.React/Scripts/Navigator'
-import { ResultTable, FindOptions, FilterOption, QueryDescription, SubTokensOptions, QueryToken, QueryTokenType, ColumnOptionParsed, OrderOptionParsed, OrderType, ResultRow, hasAggregate, ColumnOption, FilterOptionParsed } from '../../../../Framework/Signum.React/Scripts/FindOptions'
+import * as Finder from '@framework/Finder'
+import * as Navigator from '@framework/Navigator'
+import { ResultTable, FindOptions, FilterOption, QueryDescription, SubTokensOptions, QueryToken, QueryTokenType, ColumnOptionParsed, OrderOptionParsed, OrderType, ResultRow, hasAggregate, ColumnOption, FilterOptionParsed } from '@framework/FindOptions'
 import { ChartColumnEmbedded, ChartScriptColumnEmbedded, ChartScriptParameterEmbedded, ChartRequest, GroupByChart, ChartMessage,
    ChartColorEntity, ChartScriptEntity, ChartParameterEmbedded, ChartParameterType } from '../Signum.Entities.Chart'
+import { toFilterOptions } from '@framework/Finder';
 
 export default class ChartTable extends React.Component<{ resultTable: ResultTable; chartRequest: ChartRequest; lastChartRequest: ChartRequest; onRedraw: () => void }> {
 
@@ -122,19 +123,14 @@ export default class ChartTable extends React.Component<{ resultTable: ResultTab
 
                     if (col.parent)
                         columns.push({
-                            columnName: col.fullKey
+                            token: col.fullKey
                         });
                 }
             });
 
             window.open(Finder.findOptionsPath({
                 queryName: lcr.queryKey,
-                filterOptions: filters.map(fop => ({
-                    columnName: fop.token!.fullKey,
-                    operation: fop.operation,
-                    value: fop.value,
-                    frozen: fop.frozen,
-                }) as FilterOption),
+                filterOptions: toFilterOptions(filters),
                 columnOptions: columns,
             }));
         }

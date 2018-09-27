@@ -29,7 +29,7 @@ namespace Signum.Engine.Workflow
     {
 
         static Expression<Func<WorkflowEventTaskEntity, IQueryable<WorkflowEventTaskConditionResultEntity>>> ConditionResultsExpression =
-        e => Database.Query<WorkflowEventTaskConditionResultEntity>().Where(a => a.WorkflowEventTask.RefersTo(e));
+        e => Database.Query<WorkflowEventTaskConditionResultEntity>().Where(a => a.WorkflowEventTask.Is(e));
         [ExpressionField]
         public static IQueryable<WorkflowEventTaskConditionResultEntity> ConditionResults(this WorkflowEventTaskEntity e)
         {
@@ -39,7 +39,7 @@ namespace Signum.Engine.Workflow
 
         static Expression<Func<WorkflowEventEntity, ScheduledTaskEntity>> ScheduledTaskExpression =
         e => Database.Query<ScheduledTaskEntity>()
-                        .SingleOrDefault(s => ((WorkflowEventTaskEntity)s.Task).Event.RefersTo(e));
+                        .SingleOrDefault(s => ((WorkflowEventTaskEntity)s.Task).Event.Is(e));
         [ExpressionField]
         public static ScheduledTaskEntity ScheduledTask(this WorkflowEventEntity e)
         {
@@ -48,7 +48,7 @@ namespace Signum.Engine.Workflow
 
         static Expression<Func<WorkflowEventEntity, WorkflowEventTaskEntity>> WorkflowEventTaskExpression =
         e => Database.Query<WorkflowEventTaskEntity>()
-                        .SingleOrDefault(et => et.Event.RefersTo(e));
+                        .SingleOrDefault(et => et.Event.Is(e));
         [ExpressionField]
         public static WorkflowEventTaskEntity WorkflowEventTask(this WorkflowEventEntity e)
         {
@@ -56,7 +56,7 @@ namespace Signum.Engine.Workflow
         }
 
 
-        public static void Start(SchemaBuilder sb, DynamicQueryManager dqm)
+        public static void Start(SchemaBuilder sb)
         {
             if (sb.NotDefined(MethodInfo.GetCurrentMethod()))
             {
@@ -65,7 +65,7 @@ namespace Signum.Engine.Workflow
 
                 sb.Include<WorkflowEventTaskEntity>()
                     .WithDelete(WorkflowEventTaskOperation.Delete)
-                    .WithQuery(dqm, () => e => new
+                    .WithQuery(() => e => new
                     {
                         Entity = e,
                         e.Id,
@@ -76,8 +76,8 @@ namespace Signum.Engine.Workflow
 
                 new Graph<WorkflowEventTaskEntity>.Execute(WorkflowEventTaskOperation.Save)
                 {
-                    AllowsNew = true,
-                    Lite = false,
+                    CanBeNew = true,
+                    CanBeModified = true,
                     Execute = (e, _) => {
 
                         if (e.TriggeredOn == TriggeredOn.Always)
@@ -96,7 +96,7 @@ namespace Signum.Engine.Workflow
                 ExceptionLogic.DeleteLogs += ExceptionLogic_DeleteLogs;
 
                 sb.Include<WorkflowEventTaskConditionResultEntity>()
-                    .WithQuery(dqm, () => e => new
+                    .WithQuery(() => e => new
                     {
                         Entity = e,
                         e.Id,
@@ -110,7 +110,7 @@ namespace Signum.Engine.Workflow
 
                 WorkflowEventTaskModel.GetModel = (@event) =>
                 {
-                    if (!@event.Type.IsTimerStart())
+                    if (!@event.Type.IsScheduledStart())
                         return null;
 
                     var schedule = @event.ScheduledTask();
@@ -131,7 +131,7 @@ namespace Signum.Engine.Workflow
                 {
                     var schedule = @event.IsNew ? null : @event.ScheduledTask();
 
-                    if (!@event.Type.IsTimerStart())
+                    if (!@event.Type.IsScheduledStart())
                     {
                         if (schedule != null)
                             DeleteWorkflowEventScheduledTask(schedule);
@@ -191,7 +191,7 @@ namespace Signum.Engine.Workflow
 
         internal static void CloneScheduledTasks(WorkflowEventEntity oldEvent, WorkflowEventEntity newEvent)
         {
-            var task = Database.Query<WorkflowEventTaskEntity>().SingleOrDefault(a => a.Event.RefersTo(oldEvent));
+            var task = Database.Query<WorkflowEventTaskEntity>().SingleOrDefault(a => a.Event.Is(oldEvent));
             if (task == null)
                 return;
 

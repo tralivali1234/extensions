@@ -1,13 +1,13 @@
 ﻿import * as React from 'react'
 import * as moment from 'moment'
 import { RouteComponentProps } from 'react-router'
-import * as Navigator from '../../../Framework/Signum.React/Scripts/Navigator'
-import * as Finder from '../../../Framework/Signum.React/Scripts/Finder'
-import EntityLink from '../../../Framework/Signum.React/Scripts/SearchControl/EntityLink'
-import {ValueSearchControl, SearchControl, OrderType } from '../../../Framework/Signum.React/Scripts/Search'
-import { QueryDescription, SubTokensOptions } from '../../../Framework/Signum.React/Scripts/FindOptions'
-import { getQueryNiceName, PropertyRoute, getTypeInfos } from '../../../Framework/Signum.React/Scripts/Reflection'
-import { ModifiableEntity, EntityControlMessage, Entity, parseLite, getToString, JavascriptMessage } from '../../../Framework/Signum.React/Scripts/Signum.Entities'
+import * as Navigator from '@framework/Navigator'
+import * as Finder from '@framework/Finder'
+import EntityLink from '@framework/SearchControl/EntityLink'
+import {ValueSearchControl, SearchControl, OrderType } from '@framework/Search'
+import { QueryDescription, SubTokensOptions } from '@framework/FindOptions'
+import { getQueryNiceName, PropertyRoute, getTypeInfos } from '@framework/Reflection'
+import { ModifiableEntity, EntityControlMessage, Entity, parseLite, getToString, JavascriptMessage } from '@framework/Signum.Entities'
 import { API, AsyncEmailSenderState } from './MailingClient'
 import { EmailMessageEntity } from './Signum.Entities.Mailing'
 
@@ -81,7 +81,7 @@ export default class AsyncEmailSenderPage extends React.Component<AsyncEmailSend
                 <h2>{EmailMessageEntity.niceName()}</h2>
                 <SearchControl findOptions={{
                     queryName: EmailMessageEntity,
-                    orderOptions: [{ columnName: "Entity.CreationDate", orderType: "Descending" }],
+                    orderOptions: [{ token: "Entity.CreationDate", orderType: "Descending" }],
                     pagination: { elementsPerPage: 10, mode: "Firsts" }
                 }} />
             </div>

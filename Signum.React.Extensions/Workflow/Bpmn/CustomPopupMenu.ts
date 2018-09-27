@@ -1,8 +1,8 @@
 ﻿/// <reference path="../bpmn-js.d.ts" />
-import * as Modeler from "bpmn-js/lib/Modeler"
-import * as BpmnReplaceMenuProvider from "bpmn-js/lib/features/popup-menu/ReplaceMenuProvider"
+import Modeler from "bpmn-js/lib/Modeler"
+import BpmnReplaceMenuProvider from "bpmn-js/lib/features/popup-menu/ReplaceMenuProvider"
 import * as BpmnUtils from './BpmnUtils'
-import { Lite, liteKey } from '../../../../Framework/Signum.React/Scripts/Signum.Entities'
+import { Lite, liteKey } from '@framework/Signum.Entities'
 
 interface ReplaceOptions {
     actionName: string;

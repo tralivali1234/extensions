@@ -1,7 +1,7 @@
 ﻿import * as d3 from "d3"
 import * as React from "react"
-import * as Finder from '../../../../Framework/Signum.React/Scripts/Finder'
-import { OperationLogEntity } from '../../../../Framework/Signum.React/Scripts/Signum.Entities.Basics'
+import * as Finder from '@framework/Finder'
+import { OperationLogEntity } from '@framework/Signum.Entities.Basics'
 import { Point, Rectangle, calculatePoint, wrap, colorScale, forceBoundingBox } from '../Utils'
 
 export interface OperationMapInfo {
@@ -146,7 +146,7 @@ export class OperationMapD3 {
                     return;
 
                 if ((<any>event).ctrlKey && d.token) {
-                    window.open(Finder.findOptionsPath({ queryName: this.queryName, filterOptions: [{ columnName: d.token, value: d.key }] }));
+                    window.open(Finder.findOptionsPath({ queryName: this.queryName, filterOptions: [{ token: d.token, value: d.key }] }));
                     d3.event.preventDefault();
                 }
             }).on("dblclick", d => {
@@ -224,7 +224,7 @@ export class OperationMapD3 {
                     return;
 
                 if ((<any>event).ctrlKey) {
-                    window.open(Finder.findOptionsPath({ queryName: OperationLogEntity, filterOptions: [{ columnName: "Operation.Key", value: d.key }] }));
+                    window.open(Finder.findOptionsPath({ queryName: OperationLogEntity, filterOptions: [{ token: "Operation.Key", value: d.key }] }));
                     d3.event.preventDefault();
                 }
             }).on("dblclick", d => {

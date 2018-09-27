@@ -1,26 +1,26 @@
 ﻿import * as React from 'react'
 import * as moment from 'moment'
 import { RouteComponentProps } from 'react-router'
-import { StyleContext, RenderEntity, TypeContext } from '../../../../Framework/Signum.React/Scripts/Lines';
-import * as Finder from '../../../../Framework/Signum.React/Scripts/Finder'
-import EntityLink from '../../../../Framework/Signum.React/Scripts/SearchControl/EntityLink'
-import { ValueSearchControl, SearchControl, ValueSearchControlLine, ColumnOption } from '../../../../Framework/Signum.React/Scripts/Search'
-import { QueryDescription, SubTokensOptions } from '../../../../Framework/Signum.React/Scripts/FindOptions'
-import { getQueryNiceName, PropertyRoute, getTypeInfos } from '../../../../Framework/Signum.React/Scripts/Reflection'
-import { ModifiableEntity, EntityControlMessage, Entity, parseLite, getToString, JavascriptMessage } from '../../../../Framework/Signum.React/Scripts/Signum.Entities'
-import * as Operations from '../../../../Framework/Signum.React/Scripts/Operations'
-import * as Navigator from '../../../../Framework/Signum.React/Scripts/Navigator'
-import { Type } from '../../../../Framework/Signum.React/Scripts/Reflection'
+import { StyleContext, RenderEntity, TypeContext } from '@framework/Lines';
+import * as Finder from '@framework/Finder'
+import EntityLink from '@framework/SearchControl/EntityLink'
+import { ValueSearchControl, SearchControl, ValueSearchControlLine, ColumnOption } from '@framework/Search'
+import { QueryDescription, SubTokensOptions } from '@framework/FindOptions'
+import { getQueryNiceName, PropertyRoute, getTypeInfos } from '@framework/Reflection'
+import { ModifiableEntity, EntityControlMessage, Entity, parseLite, getToString, JavascriptMessage } from '@framework/Signum.Entities'
+import * as Operations from '@framework/Operations'
+import * as Navigator from '@framework/Navigator'
+import { Type } from '@framework/Reflection'
 import { TimeMachineMessage } from '../Signum.Entities.DiffLog';
-import { Lite } from '../../../../Framework/Signum.React/Scripts/Signum.Entities';
-import { newLite } from '../../../../Framework/Signum.React/Scripts/Reflection';
-import { EngineMessage } from '../../../../Framework/Signum.React/Scripts/Signum.Entities';
-import { NormalWindowMessage } from '../../../../Framework/Signum.React/Scripts/Signum.Entities';
-import { getTypeNiceName } from '../../../../Framework/Signum.React/Scripts/Finder';
-import { Dic } from '../../../../Framework/Signum.React/Scripts/Globals';
-import { getTypeInfo} from '../../../../Framework/Signum.React/Scripts/Reflection';
-import { UncontrolledTabs, Tab } from '../../../../Framework/Signum.React/Scripts/Components';
-import { is } from '../../../../Framework/Signum.React/Scripts/Signum.Entities';
+import { Lite } from '@framework/Signum.Entities';
+import { newLite } from '@framework/Reflection';
+import { EngineMessage } from '@framework/Signum.Entities';
+import { NormalWindowMessage } from '@framework/Signum.Entities';
+import { getTypeNiceName } from '@framework/Finder';
+import { Dic } from '@framework/Globals';
+import { getTypeInfo} from '@framework/Reflection';
+import { UncontrolledTabs, Tab } from '@framework/Components';
+import { is } from '@framework/Signum.Entities';
 import * as DiffLogClient from '../DiffLogClient';
 import { DiffDocument } from './DiffDocument';
 
@@ -74,7 +74,7 @@ export default class TimeMachinePage extends React.Component<TimeMachinePageProp
                     <span className="display-5">{TimeMachineMessage.TimeMachine.niceToString()}</span>
                     <br />
                     <small className="sf-type-nice-name">
-                        {NormalWindowMessage.Type0Id1.niceToString().formatWith(getTypeInfo(lite.EntityType).niceName, lite.id)}
+                        <EntityLink lite={lite}>{NormalWindowMessage.Type0Id1.niceToString().formatWith(getTypeInfo(lite.EntityType).niceName, lite.id)}</EntityLink>
                         &nbsp;
                         <span style={{ color: "#aaa" }}>{lite.toStr}</span>
                     </small>
@@ -85,13 +85,13 @@ export default class TimeMachinePage extends React.Component<TimeMachinePageProp
                 {   
                     this.state.queryDescription && <SearchControl ref={sc => this.searchControl = sc} findOptions={{
                         queryName: lite.EntityType,
-                        filterOptions: [{ columnName: "Entity", operation: "EqualTo", value: lite }],
+                        filterOptions: [{ token: "Entity", operation: "EqualTo", value: lite }],
                         columnOptions: [
-                            { columnName: "Entity.SystemValidFrom" },
-                            ...Dic.getValues(this.state.queryDescription.columns).map(c => ({ columnName: c.name }) as ColumnOption)
+                            { token: "Entity.SystemValidFrom" },
+                            ...Dic.getValues(this.state.queryDescription.columns).map(c => ({ token: c.name }) as ColumnOption)
                         ],
                         columnOptionsMode: "Replace",
-                        orderOptions: [{ columnName: "Entity.SystemValidFrom", orderType: "Ascending" }],
+                        orderOptions: [{ token: "Entity.SystemValidFrom", orderType: "Ascending" }],
                         systemTime: { mode: "All" }
                     }}
                         onSelectionChanged={() => this.forceUpdate()}

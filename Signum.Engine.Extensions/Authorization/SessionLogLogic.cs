@@ -16,14 +16,16 @@ namespace Signum.Engine.Authorization
 {
     public static class SessionLogLogic
     {
-        public static void Start(SchemaBuilder sb, DynamicQueryManager dqm)
+        public static bool IsStarted { get; private set; }
+
+        public static void Start(SchemaBuilder sb)
         {
             if (sb.NotDefined(MethodInfo.GetCurrentMethod()))
             {
                 AuthLogic.AssertStarted(sb);
 
                 sb.Include<SessionLogEntity>()
-                    .WithQuery(dqm, () => sl => new
+                    .WithQuery(() => sl => new
                     {
                         Entity = sl,
                         sl.Id,
@@ -36,6 +38,8 @@ namespace Signum.Engine.Authorization
                 PermissionAuthLogic.RegisterPermissions(SessionLogPermission.TrackSession);
 
                 ExceptionLogic.DeleteLogs += ExceptionLogic_DeleteLogs;
+
+                IsStarted = true;
             }
         }
 
@@ -82,7 +86,7 @@ namespace Signum.Engine.Authorization
                 var sessionEnd = timeOut.HasValue ? TimeZoneManager.Now.Subtract(timeOut.Value).TrimToSeconds() : TimeZoneManager.Now.TrimToSeconds();
 
                 var rows = Database.Query<SessionLogEntity>()
-                    .Where(sl => sl.User.RefersTo(user))
+                    .Where(sl => sl.User.Is(user))
                     .OrderByDescending(sl => sl.SessionStart)
                     .Take(1)
                     .Where(sl => sl.SessionEnd == null)

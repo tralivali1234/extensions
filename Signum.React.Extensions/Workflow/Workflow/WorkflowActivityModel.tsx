@@ -1,23 +1,14 @@
 ﻿import * as React from 'react'
 import {
-    WorkflowActivityEntity, WorkflowActivityModel, WorkflowMessage, WorkflowActivityMessage, WorkflowConditionEntity, WorkflowActionEntity,
-    WorkflowJumpEmbedded, WorkflowTimerEmbedded, IWorkflowNodeEntity, SubWorkflowEmbedded, SubEntitiesEval, WorkflowScriptEntity, WorkflowScriptPartEmbedded, WorkflowScriptEval, WorkflowEntity, WorkflowActivityType
+    WorkflowActivityModel, WorkflowMessage, SubWorkflowEmbedded, SubEntitiesEval, WorkflowScriptEntity, WorkflowScriptPartEmbedded, WorkflowEntity
 } from '../Signum.Entities.Workflow'
-import * as WorkflowClient from '../WorkflowClient'
-import * as DynamicViewClient from '../../Dynamic/DynamicViewClient'
-import { TypeContext, ValueLine, ValueLineType, EntityLine, EntityTable, EntityDetail, FormGroup, LiteAutocompleteConfig, RenderEntity, EntityRepeater } from '../../../../Framework/Signum.React/Scripts/Lines'
-import { is, JavascriptMessage, Lite } from '../../../../Framework/Signum.React/Scripts/Signum.Entities'
-import { TypeEntity } from '../../../../Framework/Signum.React/Scripts/Signum.Entities.Basics'
-import { DynamicValidationEntity } from '../../Dynamic/Signum.Entities.Dynamic'
-import { Dic } from '../../../../Framework/Signum.React/Scripts/Globals';
-import { Binding } from '../../../../Framework/Signum.React/Scripts/Reflection';
+import { TypeContext, ValueLine, EntityLine, FormGroup, EntityRepeater } from '@framework/Lines'
+import { TypeEntity } from '@framework/Signum.Entities.Basics'
+import { Binding } from '@framework/Reflection';
 import CSharpCodeMirror from '../../Codemirror/CSharpCodeMirror'
 import TypeHelpComponent from "../../TypeHelp/TypeHelpComponent";
 import HtmlEditor from '../../HtmlEditor/HtmlEditor'
-import * as Navigator from '../../../../Framework/Signum.React/Scripts/Navigator'
-import { API } from '../WorkflowClient'
-import { newMListElement } from '../../../../Framework/Signum.React/Scripts/Signum.Entities';
-import { TimeSpanEmbedded } from '../../Basics/Signum.Entities.Basics';
+import * as Navigator from '@framework/Navigator'
 
 interface WorkflowActivityModelComponentProps {
     ctx: TypeContext<WorkflowActivityModel>;
@@ -58,9 +49,7 @@ export default class WorkflowActivityModelComponent extends React.Component<Work
     handleTypeChange = () => {
 
         var wa = this.props.ctx.value;
-        if (!allowsTimers(wa.type))
-            wa.timers.clear();
-        
+
         if (wa.type == "Script") {
             if (!wa.script)
                 wa.script = WorkflowScriptPartEmbedded.New({
@@ -79,7 +68,6 @@ export default class WorkflowActivityModelComponent extends React.Component<Work
         if (wa.type == "DecompositionWorkflow" || wa.type == "CallWorkflow" || wa.type == "Script") {
             wa.viewName = null;
             wa.requiresOpen = false;
-            wa.reject = null;
         }
         else {
             wa.subWorkflow = null;
@@ -99,7 +87,7 @@ export default class WorkflowActivityModelComponent extends React.Component<Work
         return (
             <div>
                 <ValueLine ctx={ctx.subCtx(d => d.name)} onChange={() => this.forceUpdate()} />
-                <ValueLine ctx={ctx.subCtx(d => d.type)} onChange={this.handleTypeChange} readOnly={ctx.value.type == "Delay" || undefined} comboBoxItems={WorkflowActivityType.values().filter(a => a != "Delay")} />
+                <ValueLine ctx={ctx.subCtx(d => d.type)} onChange={this.handleTypeChange} />
                 <ValueLine ctx={ctx.subCtx(a => a.estimatedDuration)} />
 
                 {ctx.value.type != "DecompositionWorkflow" && ctx.value.type != "CallWorkflow" && ctx.value.type != "Script" &&
@@ -117,71 +105,9 @@ export default class WorkflowActivityModelComponent extends React.Component<Work
 
 
                         <ValueLine ctx={ctx.subCtx(a => a.requiresOpen)} />
-                        <EntityDetail ctx={ctx.subCtx(a => a.reject)} />
 
-                    {allowsTimers(ctx.value.type) ? ctx.value.workflow ?
-                        <EntityRepeater ctx={ctx.subCtx(a => a.timers)} create={ctx.value.type != "Delay"} remove={ctx.value.type != "Delay"} getComponent={(tctx: TypeContext<WorkflowTimerEmbedded>) =>
-                            <div className="row">
-                                <div className="col-sm-6">
-                                    <EntityLine ctx={tctx.subCtx(t => t.condition)} />
-                                    <EntityDetail ctx={tctx.subCtx(t => t.duration)} />
-                                </div>
-                                <div className="col-sm-6">
-                                    <ValueLine ctx={tctx.subCtx(t => t.interrupting)} visible={ctx.value.type != "Delay"} />
-                                    <EntityLine
-                                        ctx={tctx.subCtx(t => t.to)}
-                                        autoComplete={new LiteAutocompleteConfig((ac, str) => API.findNode({ workflowId: ctx.value.workflow!.id, subString: str, count: 5, excludes: this.getCurrentJumpsTo() }, ac), false)}
-                                        find={false} />
-                                    <EntityLine ctx={tctx.subCtx(t => t.action)} findOptions={{
-                                        queryName: WorkflowActionEntity,
-                                        parentColumn: "Entity.MainEntityType",
-                                        parentValue: ctx.value.mainEntityType
-                                    }} />
-                                </div>
-                            </div>
-                        } /> : <div className="alert alert-warning">{WorkflowMessage.ToUse0YouSouldSaveWorkflow.niceToString(ctx.niceName(e => e.timers))}</div>
-                        : undefined}
-
-                        {ctx.value.workflow ?
-                            <EntityTable
-                                labelText={<div>{ctx.niceName(d => d.jumps)} : <small style={{ fontWeight: "normal" }}>{WorkflowMessage.ToUseNewNodesOnJumpsYouSouldSaveWorkflow.niceToString()}</small></div>}
-                                ctx={ctx.subCtx(d => d.jumps)}
-                                columns={EntityTable.typedColumns<WorkflowJumpEmbedded>([
-                                    {
-                                        property: wj => wj.to,
-                                        template: (jctx, row, state) => {
-                                            return <EntityLine
-                                                ctx={jctx.subCtx(wj => wj.to)}
-                                                autoComplete={new LiteAutocompleteConfig((ac, str) => API.findNode({ workflowId: ctx.value.workflow!.id, subString: str, count: 5, excludes: this.getCurrentJumpsTo() }, ac), false)}
-                                                find={false} />
-                                        },
-                                        headerHtmlAttributes: { style: { width: "40%" } }
-                                    },
-                                    {
-                                        property: wj => wj.action,
-                                        headerHtmlAttributes: { style: { width: "30%" } },
-                                        template: (jctx, row, state) => {
-                                            return <EntityLine ctx={jctx.subCtx(wj => wj.action)} findOptions={{
-                                                queryName: WorkflowActionEntity,
-                                                parentColumn: "Entity.MainEntityType",
-                                                parentValue: ctx.value.mainEntityType
-                                            }} />
-                                        },
-                                    },
-                                    {
-                                        property: wj => wj.condition,
-                                        headerHtmlAttributes: { style: { width: "20%" } },
-                                        template: (jctx, row, state) => {
-                                            return <EntityLine ctx={jctx.subCtx(wj => wj.condition)} findOptions={{
-                                                queryName: WorkflowConditionEntity,
-                                                parentColumn: "Entity.MainEntityType",
-                                                parentValue: ctx.value.mainEntityType
-                                            }} />
-                                        },
-                                    },
-                                ])} /> :
-                            <div className="alert alert-warning">{WorkflowMessage.ToUse0YouSouldSaveWorkflow.niceToString(ctx.niceName(e => e.jumps))}</div>
-                        }
+                        {ctx.value.workflow ? <EntityRepeater ctx={ctx.subCtx(a => a.boundaryTimers)} readOnly={true} /> :
+                            <div className="alert alert-warning">{WorkflowMessage.ToUse0YouSouldSaveWorkflow.niceToString(ctx.niceName(e => e.boundaryTimers))}</div>}
 
                         <fieldset>
                             <legend>{WorkflowActivityModel.nicePropertyName(a => a.userHelp)}</legend>
@@ -204,19 +130,6 @@ export default class WorkflowActivityModelComponent extends React.Component<Work
             </div>
         );
     }
-
-    getCurrentJumpsTo() {
-        var result: Lite<IWorkflowNodeEntity>[] = [];
-        var ctx = this.props.ctx;
-        if (ctx.value.workflowActivity)
-            result.push(ctx.value.workflowActivity);
-        ctx.value.jumps.forEach(j => j.element.to && result.push(j.element.to));
-        return result;
-    }
-}
-
-function allowsTimers(type: WorkflowActivityType | null | undefined) {
-    return type == "Task" || type == "Decision" || type == "Delay";
 }
 
 class ScriptComponent extends React.Component<{ ctx: TypeContext<WorkflowScriptPartEmbedded>, mainEntityType: TypeEntity, workflow: WorkflowEntity }>{
@@ -230,16 +143,10 @@ class ScriptComponent extends React.Component<{ ctx: TypeContext<WorkflowScriptP
                 <legend>{ctx.niceName()}</legend>
                 <EntityLine ctx={ctx.subCtx(p => p.script)} findOptions={{
                     queryName: WorkflowScriptEntity,
-                    parentColumn: "Entity.MainEntityType",
+                    parentToken: "Entity.MainEntityType",
                     parentValue: this.props.mainEntityType
                 }} />
                 <EntityLine ctx={ctx.subCtx(s => s.retryStrategy)} />
-                <EntityLine
-                    ctx={ctx.subCtx(s => s.onFailureJump)}
-                    autoComplete={new LiteAutocompleteConfig((ac, str) => API.findNode({ workflowId: this.props.workflow.id, subString: str, count: 5 }, ac), false)}
-                    find={false}
-                    helpText={WorkflowMessage.ToUseNewNodesOnJumpsYouSouldSaveWorkflow.niceToString()} />
-
             </fieldset>
         );
     }

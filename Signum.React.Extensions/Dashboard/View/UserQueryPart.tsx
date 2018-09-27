@@ -1,18 +1,20 @@
 ﻿
 import * as React from 'react'
-import { FormGroup, FormControlReadonly, ValueLine, ValueLineType, EntityLine, EntityCombo, EntityList, EntityRepeater, RenderEntity } from '../../../../Framework/Signum.React/Scripts/Lines'
-import * as Finder from '../../../../Framework/Signum.React/Scripts/Finder'
-import { QueryDescription, SubTokensOptions, FindOptions } from '../../../../Framework/Signum.React/Scripts/FindOptions'
-import { getQueryNiceName, PropertyRoute, getTypeInfos } from '../../../../Framework/Signum.React/Scripts/Reflection'
-import { ModifiableEntity, EntityControlMessage, Entity, parseLite, getToString, Lite, is, JavascriptMessage } from '../../../../Framework/Signum.React/Scripts/Signum.Entities'
-import * as Navigator from '../../../../Framework/Signum.React/Scripts/Navigator'
-import * as Constructor from '../../../../Framework/Signum.React/Scripts/Constructor'
-import { SearchControl, ValueSearchControl } from '../../../../Framework/Signum.React/Scripts/Search'
-import { TypeContext, FormGroupStyle, mlistItemContext } from '../../../../Framework/Signum.React/Scripts/TypeContext'
+import { FormGroup, FormControlReadonly, ValueLine, ValueLineType, EntityLine, EntityCombo, EntityList, EntityRepeater, RenderEntity } from '@framework/Lines'
+import * as Finder from '@framework/Finder'
+import { QueryDescription, SubTokensOptions, FindOptions } from '@framework/FindOptions'
+import { getQueryNiceName, PropertyRoute, getTypeInfos } from '@framework/Reflection'
+import { ModifiableEntity, EntityControlMessage, Entity, parseLite, getToString, Lite, is, JavascriptMessage } from '@framework/Signum.Entities'
+import * as Navigator from '@framework/Navigator'
+import * as Constructor from '@framework/Constructor'
+import { SearchControl, ValueSearchControl } from '@framework/Search'
+import { TypeContext, FormGroupStyle, mlistItemContext } from '@framework/TypeContext'
 import QueryTokenEntityBuilder from '../../UserAssets/Templates/QueryTokenEntityBuilder'
 import * as UserQueryClient from '../../UserQueries/UserQueryClient'
 import { UserQueryPartEntity, PanelPartEmbedded, PanelStyle } from '../Signum.Entities.Dashboard'
-import { classes } from '../../../../Framework/Signum.React/Scripts/Globals';
+import { classes } from '@framework/Globals';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { parseIcon } from '../Admin/Dashboard';
 
 
 export interface UserQueryPartProps {
@@ -82,9 +84,16 @@ interface BigValueBadgeProps {
     iconColor?: string;
 }
 
-export class BigValueSearchCounter extends React.Component<BigValueBadgeProps> {
+export class BigValueSearchCounter extends React.Component<BigValueBadgeProps, { isRTL: boolean; }> {
+
+    constructor(props: BigValueBadgeProps) {
+        super(props);
+
+        this.state = { isRTL: document.body.classList.contains("rtl") };
+    }
 
     vsc!: ValueSearchControl;
+
     render() {
 
         return (
@@ -97,9 +106,10 @@ export class BigValueSearchCounter extends React.Component<BigValueBadgeProps> {
                 <div className={classes("card-body", "bg-" + this.props.style.toLowerCase())} onClick={e => this.vsc.handleClick(e)} style={{ cursor: "pointer" }}>
                     <div className="row">
                         <div className="col-3">
-                            <i className={classes(this.props.iconName, "fa-4x")} style={{ color: this.props.iconColor }}></i>
+                            {this.props.iconName &&
+                                <FontAwesomeIcon icon={parseIcon(this.props.iconName)!} color={this.props.iconColor} size="4x" />}
                         </div>
-                        <div className="col-9 flip text-right">
+                        <div className={classes("col-9 flip", this.state.isRTL ? "text-left" : "text-right")}>
                             <h1>
                                 <ValueSearchControl
                                     ref={vsc => {
@@ -111,7 +121,7 @@ export class BigValueSearchCounter extends React.Component<BigValueBadgeProps> {
                             </h1>
                         </div>
                     </div>
-                    <div className="flip text-right">
+                    <div className={classes("flip", this.state.isRTL ? "text-left" : "text-right")}>
                         <h6 className="large">{this.props.text || getQueryNiceName(this.props.findOptions.queryName)}</h6>
                     </div>
                 </div>

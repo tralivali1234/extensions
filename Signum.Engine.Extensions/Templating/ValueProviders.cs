@@ -1,4 +1,5 @@
-﻿using Signum.Engine.DynamicQuery;
+﻿using Signum.Engine.Basics;
+using Signum.Engine.DynamicQuery;
 using Signum.Engine.Translation;
 using Signum.Entities;
 using Signum.Entities.DynamicQuery;
@@ -69,7 +70,7 @@ namespace Signum.Engine.Templating
 
         public override string ToString() => ToString(new ScopedDictionary<string, ValueProviderBase>(null), null);
 
-        public abstract void Synchronize(SyncronizationContext sc, string remainingText);
+        public abstract void Synchronize(SynchronizationContext sc, string remainingText);
 
         public virtual void Declare(ScopedDictionary<string, ValueProviderBase> variables)
         {
@@ -156,7 +157,7 @@ namespace Signum.Engine.Templating
             if (Type == null)
                 return;
 
-            var result = FilterValueConverter.TryParse(valueString, Type, Operation.Value.IsList(), allowSmart: true);
+            var result = FilterValueConverter.TryParse(valueString, Type, Operation.Value.IsList());
 
             if (result is Result<object>.Error e)
                 addError(false, "Impossible to convert '{0}' to {1}: {2}".FormatWith(valueString, Type.TypeName(), e.ErrorText));
@@ -247,7 +248,7 @@ namespace Signum.Engine.Templating
             sb.Append(this.ParsedToken.ToString(variables));
         }
 
-        public override void Synchronize(SyncronizationContext sc, string remainingText)
+        public override void Synchronize(SynchronizationContext sc, string remainingText)
         {
             sc.SynchronizeToken(ParsedToken, remainingText);
 
@@ -271,9 +272,12 @@ namespace Signum.Engine.Templating
         public TranslateInstanceValueProvider(ParsedToken token, bool isExplicit, Action<bool, string> addError)
         {
             this.ParsedToken = token;
-            this.Route = token.QueryToken.GetPropertyRoute();
             this.IsExplicit = isExplicit;
-            this.EntityToken = DeterminEntityToken(token.QueryToken, addError);
+            if (token.QueryToken != null)
+            {
+                this.Route = token.QueryToken.GetPropertyRoute();
+                this.EntityToken = DeterminEntityToken(token.QueryToken, addError);
+            }
         }
 
         public override object GetValue(TemplateParameters p)
@@ -294,7 +298,7 @@ namespace Signum.Engine.Templating
             var entityToken = token.Follow(a => a.Parent).FirstOrDefault(a => a.Type.IsLite() || a.Type.IsIEntity());
 
             if (entityToken == null)
-                entityToken = QueryUtils.Parse("Entity", DynamicQueryManager.Current.QueryDescription(token.QueryName), 0);
+                entityToken = QueryUtils.Parse("Entity", QueryLogic.Queries.QueryDescription(token.QueryName), 0);
 
             if (!entityToken.Type.CleanType().IsAssignableFrom(Route.RootType))
                 addError(false, "The entity of {0} ({1}) is not compatible with the property route {2}".FormatWith(token.FullKey(), entityToken.FullKey(), Route.RootType.NiceName()));
@@ -336,7 +340,7 @@ namespace Signum.Engine.Templating
             sb.Append(this.ParsedToken.ToString(variables));
         }
 
-        public override void Synchronize(SyncronizationContext sc, string remainingText)
+        public override void Synchronize(SynchronizationContext sc, string remainingText)
         {
             sc.SynchronizeToken(ParsedToken, remainingText);
 
@@ -492,7 +496,7 @@ namespace Signum.Engine.Templating
             sb.Append(Members == null ? fieldOrPropertyChain : Members.ToString(a => a.Name, "."));
         }
 
-        public override void Synchronize(SyncronizationContext sc, string remainingText)
+        public override void Synchronize(SynchronizationContext sc, string remainingText)
         {
             if (Members == null)
             {
@@ -602,7 +606,7 @@ namespace Signum.Engine.Templating
             }
         }
 
-        public override void Synchronize(SyncronizationContext sc, string remainingText)
+        public override void Synchronize(SynchronizationContext sc, string remainingText)
         {
             globalKey = sc.Replacements.SelectInteractive(globalKey, GlobalVariables.Keys, "Globals", sc.StringDistance) ?? globalKey;
 
@@ -626,7 +630,7 @@ namespace Signum.Engine.Templating
         {
             try
             {
-                var obj = dateTimeExpression == null ? DateTime.Now: FilterValueConverter.Parse(dateTimeExpression, typeof(DateTime?), isList: false, allowSmart: true);
+                var obj = dateTimeExpression == null ? DateTime.Now: FilterValueConverter.Parse(dateTimeExpression, typeof(DateTime?), isList: false);
                 this.dateTimeExpression = dateTimeExpression;
             }
             catch (Exception e)
@@ -639,7 +643,7 @@ namespace Signum.Engine.Templating
 
         public override object GetValue(TemplateParameters p)
         {
-            return dateTimeExpression == null ? DateTime.Now : FilterValueConverter.Parse(this.dateTimeExpression, typeof(DateTime?), isList: false, allowSmart: true);
+            return dateTimeExpression == null ? DateTime.Now : FilterValueConverter.Parse(this.dateTimeExpression, typeof(DateTime?), isList: false);
         }
 
         public override void FillQueryTokens(List<QueryToken> list)
@@ -652,7 +656,7 @@ namespace Signum.Engine.Templating
             sb.Append(TemplateUtils.ScapeColon(this.dateTimeExpression));
         }
 
-        public override void Synchronize(SyncronizationContext sc, string remainingText)
+        public override void Synchronize(SynchronizationContext sc, string remainingText)
         { 
 
 
@@ -737,7 +741,7 @@ namespace Signum.Engine.Templating
             sb.Append(Members == null ? fieldOrPropertyChain : Members.ToString(a => a.Name, "."));
         }
 
-        public override void Synchronize(SyncronizationContext sc, string remainingText)
+        public override void Synchronize(SynchronizationContext sc, string remainingText)
         {
             if (Members == null)
             {

@@ -35,12 +35,12 @@ namespace Signum.Engine.Dynamic
         public static StringBuilder CurrentLog = null;
         public static string LastLog;
 
-        public static void Start(SchemaBuilder sb, DynamicQueryManager dqm)
+        public static void Start(SchemaBuilder sb)
         {
             if (sb.NotDefined(MethodInfo.GetCurrentMethod()))
             {
                 sb.Include<DynamicRenameEntity>()
-                      .WithQuery(dqm, () => e => new
+                      .WithQuery(() => e => new
                       {
                           Entity = e,
                           e.Id,
@@ -52,7 +52,7 @@ namespace Signum.Engine.Dynamic
                       });
 
                 sb.Include<DynamicSqlMigrationEntity>()
-                    .WithQuery(dqm, () => e => new
+                    .WithQuery(() => e => new
                     {
                         Entity = e,
                         e.Id,
@@ -116,8 +116,8 @@ namespace Signum.Engine.Dynamic
                 new Graph<DynamicSqlMigrationEntity>.Execute(DynamicSqlMigrationOperation.Save)
                 {
                     CanExecute = a=> a.ExecutionDate == null ? null : DynamicSqlMigrationMessage.TheMigrationIsAlreadyExecuted.NiceToString(),
-                    AllowsNew = true,
-                    Lite = false,
+                    CanBeNew = true,
+                    CanBeModified = true,
                     Execute = (e, _) => { }
                 }.Register();
 
@@ -138,7 +138,7 @@ namespace Signum.Engine.Dynamic
                         {
                             CurrentLog = new StringBuilder();
                             LastLog = null;
-                            Console.SetOut(new SyncronizedStringWriter(CurrentLog));
+                            Console.SetOut(new SynchronizedStringWriter(CurrentLog));
 
                             string title = e.CreationDate + (e.Comment.HasText() ? " ({0})".FormatWith(e.Comment) : null);
 
@@ -299,11 +299,11 @@ namespace Signum.Engine.Dynamic
             return null;
         }
 
-        internal class SyncronizedStringWriter : TextWriter
+        internal class SynchronizedStringWriter : TextWriter
         {
             private StringBuilder stringBuilder;
 
-            public SyncronizedStringWriter(StringBuilder currentLog)
+            public SynchronizedStringWriter(StringBuilder currentLog)
             {
                 this.stringBuilder = currentLog;
             }

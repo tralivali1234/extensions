@@ -1,24 +1,24 @@
 ﻿import * as React from 'react'
 import { Route } from 'react-router'
-import { ModifiableEntity, EntityPack, is, OperationSymbol } from '../../../Framework/Signum.React/Scripts/Signum.Entities';
-import { ifError } from '../../../Framework/Signum.React/Scripts/Globals';
-import { ajaxPost, ajaxGet, ajaxGetRaw, saveFile, ServiceError } from '../../../Framework/Signum.React/Scripts/Services';
-import * as Services from '../../../Framework/Signum.React/Scripts/Services';
-import { EntitySettings, ViewPromise } from '../../../Framework/Signum.React/Scripts/Navigator'
-import { tasks, LineBase, LineBaseProps } from '../../../Framework/Signum.React/Scripts/Lines/LineBase'
-import * as Navigator from '../../../Framework/Signum.React/Scripts/Navigator'
-import * as Finder from '../../../Framework/Signum.React/Scripts/Finder'
-import * as QuickLinks from '../../../Framework/Signum.React/Scripts/QuickLinks'
-import { EntityOperationSettings } from '../../../Framework/Signum.React/Scripts/Operations'
-import { PropertyRouteEntity } from '../../../Framework/Signum.React/Scripts/Signum.Entities.Basics'
-import ButtonBar from '../../../Framework/Signum.React/Scripts/Frames/ButtonBar'
-import { PseudoType, QueryKey, getTypeInfo, PropertyRouteType, OperationInfo, isQueryDefined, getQueryInfo, GraphExplorer } from '../../../Framework/Signum.React/Scripts/Reflection'
-import * as Operations from '../../../Framework/Signum.React/Scripts/Operations'
+import { ModifiableEntity, EntityPack, is, OperationSymbol } from '@framework/Signum.Entities';
+import { ifError } from '@framework/Globals';
+import { ajaxPost, ajaxGet, ajaxGetRaw, saveFile, ServiceError } from '@framework/Services';
+import * as Services from '@framework/Services';
+import { EntitySettings, ViewPromise } from '@framework/Navigator'
+import { tasks, LineBase, LineBaseProps } from '@framework/Lines/LineBase'
+import * as Navigator from '@framework/Navigator'
+import * as Finder from '@framework/Finder'
+import * as QuickLinks from '@framework/QuickLinks'
+import { EntityOperationSettings } from '@framework/Operations'
+import { PropertyRouteEntity } from '@framework/Signum.Entities.Basics'
+import ButtonBar from '@framework/Frames/ButtonBar'
+import { PseudoType, QueryKey, getTypeInfo, PropertyRouteType, OperationInfo, isQueryDefined, getQueryInfo, GraphExplorer, PropertyRoute } from '@framework/Reflection'
+import * as Operations from '@framework/Operations'
 import { UserEntity, RoleEntity, UserOperation, PermissionSymbol, PropertyAllowed, TypeAllowedBasic, AuthAdminMessage, BasicPermission } from './Signum.Entities.Authorization'
 import { PermissionRulePack, TypeRulePack, OperationRulePack, PropertyRulePack, QueryRulePack, QueryAllowed} from './Signum.Entities.Authorization'
 import * as OmniboxClient from '../Omnibox/OmniboxClient'
 import Login from './Login/Login';
-import { ImportRoute } from "../../../Framework/Signum.React/Scripts/AsyncImport";
+import { ImportRoute } from "@framework/AsyncImport";
 import * as QueryString from "query-string";
 
 export let userTicket: boolean;
@@ -131,6 +131,14 @@ export function start(options: { routes: JSX.Element[], types: boolean; properti
         key: "DownloadAuthRules",
         onClick: () => { API.downloadAuthRules(); return Promise.resolve(undefined); }
     });
+
+    PropertyRoute.prototype.canRead = function () {
+       return this.member != null && this.member.propertyAllowed != "None"
+    }
+
+    PropertyRoute.prototype.canModify = function () {
+       return this.member != null && this.member.propertyAllowed == "Modify"
+    }
 }
 
 export function queryIsFindable(queryKey: string, fullScreen: boolean) {
@@ -336,6 +344,11 @@ export function logout() {
 function logoutInternal() {
     setAuthToken(undefined);
     setCurrentUser(undefined);
+    Navigator.clearEntitySettings();
+    Operations.clearOperationSettings();
+    OmniboxClient.clearSpecialActions();
+    OmniboxClient.clearProviders();
+    Finder.clearQuerySettings();
     Options.onLogout();
 }
 
@@ -468,7 +481,7 @@ export module API {
 
 }
 
-declare module '../../../Framework/Signum.React/Scripts/Reflection' {
+declare module '@framework/Reflection' {
 
     export interface TypeInfo {
         typeAllowed: TypeAllowedBasic;
@@ -484,9 +497,14 @@ declare module '../../../Framework/Signum.React/Scripts/Reflection' {
     export interface OperationInfo {
         operationAllowed: boolean;
     }
+
+    export interface PropertyRoute {
+        canRead(): boolean;
+        canModify(): boolean;
+    }
 }
 
-declare module '../../../Framework/Signum.React/Scripts/Signum.Entities' {
+declare module '@framework/Signum.Entities' {
 
     export interface EntityPack<T extends ModifiableEntity> {
         typeAllowed?: TypeAllowedBasic;

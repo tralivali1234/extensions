@@ -32,13 +32,13 @@ namespace Signum.Engine.Translation
             = new Dictionary<Type, Dictionary<PropertyRoute, TranslateableRouteType>>();
         static ResetLazy<Dictionary<CultureInfo, Dictionary<LocalizedInstanceKey, TranslatedInstanceEntity>>> LocalizationCache;
 
-        public static void Start(SchemaBuilder sb, DynamicQueryManager dqm, Func<CultureInfo> defaultCulture)
+        public static void Start(SchemaBuilder sb, Func<CultureInfo> defaultCulture)
         {
             if (sb.NotDefined(MethodInfo.GetCurrentMethod()))
             {
                 sb.Include<TranslatedInstanceEntity>()
                     .WithUniqueIndex(ti => new { ti.Culture, ti.PropertyRoute, ti.Instance, ti.RowId })
-                    .WithQuery(dqm, () => e => new
+                    .WithQuery(() => e => new
                     {
                         Entity = e,
                         e.Id,
@@ -213,7 +213,7 @@ namespace Signum.Engine.Translation
                     let str = exp.Evaluate(e)
                     where str != null && str != "" &&
                     !Database.Query<TranslatedInstanceEntity>().Any(ti =>
-                        ti.Instance.RefersTo(e) &
+                        ti.Instance.Is(e) &
                         ti.PropertyRoute.IsPropertyRoute(pr) &&
                         ti.Culture == ci.ToCultureInfoEntity() &&
                         ti.OriginalText == str)
@@ -233,7 +233,7 @@ namespace Signum.Engine.Translation
                     let str = exp.Evaluate(mle.Element)
                     where str != null &&
                     !Database.Query<TranslatedInstanceEntity>().Any(ti =>
-                        ti.Instance.RefersTo(mle.Parent) &&
+                        ti.Instance.Is(mle.Parent) &&
                         ti.PropertyRoute.IsPropertyRoute(pr) &&
                         ti.RowId == mle.RowId.ToString() &&
                         ti.Culture == ci.ToCultureInfoEntity() &&

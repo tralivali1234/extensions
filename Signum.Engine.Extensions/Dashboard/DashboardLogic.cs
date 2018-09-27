@@ -24,7 +24,7 @@ namespace Signum.Engine.Dashboard
         public static ResetLazy<Dictionary<Lite<DashboardEntity>, DashboardEntity>> Dashboards;
         public static ResetLazy<Dictionary<Type, List<Lite<DashboardEntity>>>> DashboardsByType;
 
-        public static void Start(SchemaBuilder sb, DynamicQueryManager dqm)
+        public static void Start(SchemaBuilder sb)
         {
             if (sb.NotDefined(MethodInfo.GetCurrentMethod()))
             {
@@ -44,7 +44,7 @@ namespace Signum.Engine.Dashboard
                 });
 
                 sb.Include<DashboardEntity>()
-                    .WithQuery(dqm, () => cp => new
+                    .WithQuery(() => cp => new
                     {
                         Entity = cp,
                         cp.Id,
@@ -55,7 +55,7 @@ namespace Signum.Engine.Dashboard
                     });
 
                 sb.Include<LinkListPartEntity>()
-                    .WithQuery(dqm, () => cp => new
+                    .WithQuery(() => cp => new
                     {
                         Entity = cp,
                         ToStr = cp.ToString(),
@@ -63,7 +63,7 @@ namespace Signum.Engine.Dashboard
                     });
                 
                 sb.Include<ValueUserQueryListPartEntity>()
-                    .WithQuery(dqm, () => cp => new
+                    .WithQuery(() => cp => new
                     {
                         Entity = cp,
                         ToStr = cp.ToString(),
@@ -123,7 +123,8 @@ namespace Signum.Engine.Dashboard
                     new InvalidateWith(typeof(DashboardEntity)));
 
                 DashboardsByType = sb.GlobalLazy(() => Dashboards.Value.Values.Where(a => a.EntityType != null)
-                .GroupToDictionary(a => TypeLogic.IdToType.GetOrThrow(a.EntityType.Id), a => a.ToLite()),
+                .SelectCatch(d => KVP.Create(TypeLogic.IdToType.GetOrThrow(d.EntityType.Id), d.ToLite()))
+                .GroupToDictionary(),
                     new InvalidateWith(typeof(DashboardEntity)));
             }
         }
@@ -139,8 +140,8 @@ namespace Signum.Engine.Dashboard
 
                 new Execute(DashboardOperation.Save)
                 {
-                    AllowsNew = true,
-                    Lite = false,
+                    CanBeNew = true,
+                    CanBeModified = true,
                     Execute = (cp, _) => { }
                 }.Register();
 
@@ -249,7 +250,7 @@ namespace Signum.Engine.Dashboard
             sb.Schema.Settings.AssertImplementedBy((DashboardEntity uq) => uq.Owner, typeof(UserEntity));
 
             TypeConditionLogic.RegisterCompile<DashboardEntity>(typeCondition,
-                uq => uq.Owner.RefersTo(UserEntity.Current));
+                uq => uq.Owner.Is(UserEntity.Current));
 
             RegisterPartsTypeCondition(typeCondition);
         }

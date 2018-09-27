@@ -3,14 +3,14 @@ import { Link } from 'react-router-dom'
 import * as d3 from 'd3'
 import * as numbro from 'numbro'
 import * as moment from 'moment'
-import { } from '../../../../Framework/Signum.React/Scripts/Globals'
-import * as Navigator from '../../../../Framework/Signum.React/Scripts/Navigator'
-import * as Finder from '../../../../Framework/Signum.React/Scripts/Finder'
-import EntityLink from '../../../../Framework/Signum.React/Scripts/SearchControl/EntityLink'
-import { ValueSearchControl, SearchControl } from '../../../../Framework/Signum.React/Scripts/Search'
-import { QueryDescription, SubTokensOptions } from '../../../../Framework/Signum.React/Scripts/FindOptions'
-import { getQueryNiceName, PropertyRoute, getTypeInfos } from '../../../../Framework/Signum.React/Scripts/Reflection'
-import { ModifiableEntity, EntityControlMessage, Entity, parseLite, getToString, JavascriptMessage } from '../../../../Framework/Signum.React/Scripts/Signum.Entities'
+import { } from '@framework/Globals'
+import * as Navigator from '@framework/Navigator'
+import * as Finder from '@framework/Finder'
+import EntityLink from '@framework/SearchControl/EntityLink'
+import { ValueSearchControl, SearchControl } from '@framework/Search'
+import { QueryDescription, SubTokensOptions } from '@framework/FindOptions'
+import { getQueryNiceName, PropertyRoute, getTypeInfos } from '@framework/Reflection'
+import { ModifiableEntity, EntityControlMessage, Entity, parseLite, getToString, JavascriptMessage } from '@framework/Signum.Entities'
 import { API, HeavyProfilerEntry, StackTraceTS } from '../ProfilerClient'
 import { RouteComponentProps } from "react-router";
 
@@ -74,12 +74,12 @@ export default class HeavyEntry extends React.Component<HeavyEntryProps, { entri
         const index = this.props.match.params.selectedIndex;
         Navigator.setTitle("Heavy Profiler > Entry " + index);
         if (this.state.entries == undefined)
-            return <h3>Heavy Profiler > Entry {index} (loading...) </h3>;
+            return <h3 className="display-6">Heavy Profiler > Entry {index} (loading...) </h3>;
 
         let current = this.state.entries.filter(a => a.FullIndex == this.props.match.params.selectedIndex).single();
         return (
             <div>
-                <h2><Link to="~/profiler/heavy">Heavy Profiler</Link> > Entry {index}</h2>
+                <h2 className="display-6"><Link to="~/profiler/heavy">Heavy Profiler</Link> > Entry {index}</h2>
                 <label><input type="checkbox" checked={this.state.asyncDepth} onChange={a => this.setState({ asyncDepth: a.currentTarget.checked })} />Async Stack</label>
                 <br />
                 {this.state.entries && <HeavyProfilerDetailsD3 entries={this.state.entries} selected={current} asyncDepth={this.state.asyncDepth} />}

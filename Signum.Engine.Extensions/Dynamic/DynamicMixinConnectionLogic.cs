@@ -24,7 +24,7 @@ namespace Signum.Engine.Dynamic
 {
     public static class DynamicMixinConnectionLogic
     {
-        public static void Start(SchemaBuilder sb, DynamicQueryManager dqm)
+        public static void Start(SchemaBuilder sb)
         {
             if (sb.NotDefined(MethodInfo.GetCurrentMethod()))
             {
@@ -32,7 +32,7 @@ namespace Signum.Engine.Dynamic
                     .WithUniqueIndex(e => new { e.EntityType, e.DynamicMixin })
                     .WithSave(DynamicMixinConnectionOperation.Save)
                     .WithDelete(DynamicMixinConnectionOperation.Delete)
-                    .WithQuery(dqm, () => e => new {
+                    .WithQuery(() => e => new {
                         Entity = e,
                         e.Id,
                         e.EntityType,
@@ -41,7 +41,7 @@ namespace Signum.Engine.Dynamic
 
                 DynamicLogic.GetCodeFiles += GetCodeFiles;
                 DynamicLogic.OnWriteDynamicStarter += WriteDynamicStarter;
-                sb.Schema.Table<TypeEntity>().PreDeleteSqlSync += type => Administrator.UnsafeDeletePreCommand(Database.Query<DynamicMixinConnectionEntity>().Where(dm => dm.EntityType.RefersTo(type)));
+                sb.Schema.Table<TypeEntity>().PreDeleteSqlSync += type => Administrator.UnsafeDeletePreCommand(Database.Query<DynamicMixinConnectionEntity>().Where(dm => dm.EntityType.Is(type)));
             }
         }
 

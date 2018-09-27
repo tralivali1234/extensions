@@ -29,7 +29,7 @@ namespace Signum.Engine.Printing
         public static Action<PrintLineEntity> Print;
          
         static Expression<Func<PrintPackageEntity, IQueryable<PrintLineEntity>>> LinesExpression =
-            e => Database.Query<PrintLineEntity>().Where(a => a.Package.RefersTo(e));
+            e => Database.Query<PrintLineEntity>().Where(a => a.Package.Is(e));
         
         [ExpressionField]
         public static IQueryable<PrintLineEntity> Lines(this PrintPackageEntity e)
@@ -39,14 +39,14 @@ namespace Signum.Engine.Printing
 
         public static FileTypeSymbol TestFileType; 
 
-        public static void Start(SchemaBuilder sb, DynamicQueryManager dqm, FileTypeSymbol testFileType = null)
+        public static void Start(SchemaBuilder sb, FileTypeSymbol testFileType = null)
         {
             if (sb.NotDefined(MethodInfo.GetCurrentMethod()))
             {
                 TestFileType = testFileType;
 
                 sb.Include<PrintLineEntity>()
-                    .WithQuery(dqm, () => p => new
+                    .WithQuery(() => p => new
                     {
                         Entity = p,
                         p.CreationDate,
@@ -58,7 +58,7 @@ namespace Signum.Engine.Printing
                     });
                 
                 sb.Include<PrintPackageEntity>()
-                    .WithQuery(dqm, () => e => new
+                    .WithQuery(() => e => new
                     {
                         Entity = e,
                         e.Id,
@@ -189,7 +189,7 @@ namespace Signum.Engine.Printing
 
         public static IQueryable<PrintLineEntity> ReadyToPrint(Entity entity, FileTypeSymbol fileType)
         {
-            return Database.Query<PrintLineEntity>().Where(a => a.Referred.RefersTo(entity) && a.File.FileType == fileType && a.State == PrintLineState.ReadyToPrint);
+            return Database.Query<PrintLineEntity>().Where(a => a.Referred.Is(entity) && a.File.FileType == fileType && a.State == PrintLineState.ReadyToPrint);
         }
     }
     public class PrintStat
@@ -216,8 +216,8 @@ namespace Signum.Engine.Printing
 
             new Execute(PrintLineOperation.SaveTest)
             {
-                AllowsNew = true,
-                Lite = false,
+                CanBeNew = true,
+                CanBeModified = true,
                 FromStates = { PrintLineState.NewTest },
                 ToStates = { PrintLineState.ReadyToPrint },
                 Execute = (e, _) => { e.State = PrintLineState.ReadyToPrint; }

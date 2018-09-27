@@ -1,35 +1,36 @@
 ﻿import * as React from 'react'
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import * as Combobox from 'react-widgets/lib/Combobox'
-import { FormGroup, FormControlReadonly, ValueLine, ValueLineType, EntityLine, EntityCombo, EntityList, EntityRepeater } from '../../../../Framework/Signum.React/Scripts/Lines'
-import { classes, Dic } from '../../../../Framework/Signum.React/Scripts/Globals'
-import * as Finder from '../../../../Framework/Signum.React/Scripts/Finder'
-import { QueryDescription, SubTokensOptions, QueryToken, filterOperations, OrderType, ColumnOptionsMode } from '../../../../Framework/Signum.React/Scripts/FindOptions'
-import { getQueryNiceName, Binding, EntityDataValues, EntityKindValues, EntityKind, PropertyRoute } from '../../../../Framework/Signum.React/Scripts/Reflection'
-import * as Navigator from '../../../../Framework/Signum.React/Scripts/Navigator'
-import { SearchControl } from '../../../../Framework/Signum.React/Scripts/Search'
-import { StyleContext, FormGroupStyle } from '../../../../Framework/Signum.React/Scripts/TypeContext'
-import QueryTokenBuilder from '../../../../Framework/Signum.React/Scripts/SearchControl/QueryTokenBuilder'
-import { ModifiableEntity, JavascriptMessage, EntityControlMessage, is, Lite, Entity, toLite } from '../../../../Framework/Signum.React/Scripts/Signum.Entities'
-import { QueryEntity, TypeEntity } from '../../../../Framework/Signum.React/Scripts/Signum.Entities.Basics'
-import { FilterOperation, PaginationMode } from '../../../../Framework/Signum.React/Scripts/Signum.Entities.DynamicQuery'
-import SelectorModal from '../../../../Framework/Signum.React/Scripts/SelectorModal';
-import MessageModal from '../../../../Framework/Signum.React/Scripts/Modals/MessageModal'
+import { FormGroup, FormControlReadonly, ValueLine, ValueLineType, EntityLine, EntityCombo, EntityList, EntityRepeater } from '@framework/Lines'
+import { classes, Dic } from '@framework/Globals'
+import * as Finder from '@framework/Finder'
+import { QueryDescription, SubTokensOptions, QueryToken, filterOperations, OrderType, ColumnOptionsMode } from '@framework/FindOptions'
+import { getQueryNiceName, Binding, EntityDataValues, EntityKindValues, EntityKind, PropertyRoute } from '@framework/Reflection'
+import * as Navigator from '@framework/Navigator'
+import { SearchControl } from '@framework/Search'
+import { StyleContext, FormGroupStyle } from '@framework/TypeContext'
+import QueryTokenBuilder from '@framework/SearchControl/QueryTokenBuilder'
+import { ModifiableEntity, JavascriptMessage, EntityControlMessage, is, Lite, Entity, toLite } from '@framework/Signum.Entities'
+import { QueryEntity, TypeEntity } from '@framework/Signum.Entities.Basics'
+import { FilterOperation, PaginationMode } from '@framework/Signum.Entities.DynamicQuery'
+import SelectorModal from '@framework/SelectorModal';
+import MessageModal from '@framework/Modals/MessageModal'
 import * as DynamicTypeClient from '../DynamicTypeClient';
-import * as DynamicClient from '../DynamicClient';
+import * as DynamicClientOptions from '../DynamicClientOptions';
 import * as TypeHelpClient from '../../TypeHelp/TypeHelpClient';
 import { DynamicTypeMessage, DynamicTypeEntity, DynamicMixinConnectionEntity } from '../Signum.Entities.Dynamic';
 import { Validators, DynamicTypeDefinition, DynamicProperty } from '../DynamicTypeClient';
 import ValueComponent from './ValueComponent';
 import TypeHelpComponent from '../../TypeHelp/TypeHelpComponent'
 import CSharpCodeMirror from '../../Codemirror/CSharpCodeMirror';
-import ContextMenu from '../../../../Framework/Signum.React/Scripts/SearchControl/ContextMenu'
-import { ContextMenuPosition } from '../../../../Framework/Signum.React/Scripts/SearchControl/ContextMenu'
-import ValueLineModal from '../../../../Framework/Signum.React/Scripts/ValueLineModal'
+import ContextMenu from '@framework/SearchControl/ContextMenu'
+import { ContextMenuPosition } from '@framework/SearchControl/ContextMenu'
+import ValueLineModal from '@framework/ValueLineModal'
 
 import "./DynamicType.css"
-import { Tabs, Tab, UncontrolledTabs } from '../../../../Framework/Signum.React/Scripts/Components/Tabs';
+import { Tabs, Tab, UncontrolledTabs } from '@framework/Components/Tabs';
 import CollapsableCard from '../../Basics/Templates/CollapsableCard';
-import { Typeahead } from '../../../../Framework/Signum.React/Scripts/Components';
+import { Typeahead } from '@framework/Components';
 
 export interface DynamicTypeDesignContext {
     refreshView: () => void;
@@ -303,7 +304,7 @@ export class DynamicTypeDefinitionComponent extends React.Component<DynamicTypeD
                         <Tab eventKey="connections" title="Apply To">
                             <SearchControl findOptions={{
                                 queryName: DynamicMixinConnectionEntity,
-                                parentColumn: "DynamicMixin",
+                                parentToken: "DynamicMixin",
                                 parentValue: dt
                             }} />
                         </Tab>
@@ -314,7 +315,7 @@ export class DynamicTypeDefinitionComponent extends React.Component<DynamicTypeD
                             {this.state.typeEntity == false ? <p className="alert alert-warning">{DynamicTypeMessage.TheEntityShouldBeSynchronizedToApplyMixins.niceToString()}</p> :
                                 <SearchControl findOptions={{
                                     queryName: DynamicMixinConnectionEntity,
-                                    parentColumn: "EntityType",
+                                    parentToken: "EntityType",
                                     parentValue: this.state.typeEntity
                                 }} />
                             }
@@ -333,7 +334,7 @@ export class DynamicTypeDefinitionComponent extends React.Component<DynamicTypeD
 
     renderOthers() {
         var ctx = new StyleContext(undefined, { labelColumns: 3 });
-        return React.createElement("div", {}, ...DynamicClient.Options.onGetDynamicLineForType.map(f => f(ctx, this.props.dynamicType.typeName!)));
+        return React.createElement("div", {}, ...DynamicClientOptions.Options.onGetDynamicLineForType.map(f => f(ctx, this.props.dynamicType.typeName!)));
     }
 }
 
@@ -358,10 +359,10 @@ export class CustomCodeTab extends React.Component<{ definition: DynamicTypeDefi
                             <div>
                                 <div className="btn-group" style={{ marginBottom: "3px" }}>
                                     {dt.baseType == "Entity" && CustomCodeTab.suggestWorkflow &&
-                                        <input type="button" className="btn btn-success btn-xs sf-button" value="Workflow" onClick={this.handleWorkflowCustomInheritanceClick} />}
+                                        <input type="button" className="btn btn-success btn-sm sf-button" value="Workflow" onClick={this.handleWorkflowCustomInheritanceClick} />}
 
                                     {dt.baseType == "Entity" && CustomCodeTab.suggestTree &&
-                                        <input type="button" className="btn btn-warning btn-xs sf-button" value="Tree" onClick={this.handleTreeCustomInheritanceClick} />}
+                                        <input type="button" className="btn btn-warning btn-sm sf-button" value="Tree" onClick={this.handleTreeCustomInheritanceClick} />}
                                 </div>
                                 <div className="code-container">
                                     <pre style={{ border: "0px", margin: "0px" }}>{`public class ${entityName}:`}</pre>
@@ -378,9 +379,9 @@ export class CustomCodeTab extends React.Component<{ definition: DynamicTypeDefi
                         renderContent={e =>
                             <div>
                                 <div className="btn-group" style={{ marginBottom: "3px" }}>
-                                    <input type="button" className="btn btn-warning btn-xs sf-button" value="PreSaving" onClick={this.handlePreSavingClick} />
-                                    <input type="button" className="btn btn-success btn-xs sf-button" value="PostRetrieved" onClick={this.handlePostRetrievedClick} />
-                                    <input type="button" className="btn btn-danger btn-xs sf-button" value="Property Validator" onClick={this.handlePropertyValidatorClick} />
+                                    <input type="button" className="btn btn-warning btn-sm sf-button" value="PreSaving" onClick={this.handlePreSavingClick} />
+                                    <input type="button" className="btn btn-success btn-sm sf-button" value="PostRetrieved" onClick={this.handlePostRetrievedClick} />
+                                    <input type="button" className="btn btn-danger btn-sm sf-button" value="Property Validator" onClick={this.handlePropertyValidatorClick} />
                                 </div>
                                 <div className="code-container">
                                     <pre style={{ border: "0px", margin: "0px" }}>{`public class ${entityName}
@@ -400,13 +401,13 @@ export class CustomCodeTab extends React.Component<{ definition: DynamicTypeDefi
                             <div>
                                 {dt.baseType == "Entity" &&
                                     <div className="btn-group" style={{ marginBottom: "3px" }}>
-                                        {CustomCodeTab.suggestWorkflow && < input type="button" className="btn btn-success btn-xs sf-button" value="Workflow" onClick={this.handleWithWorkflowClick} />}
-                                        {CustomCodeTab.suggestTree && < input type="button" className="btn btn-info btn-xs sf-button" value="Tree" onClick={this.handleWithTreeClick} />}
-                                        <input type="button" className="btn btn-warning btn-xs sf-button" value="Register Operations" onClick={this.handleRegisterOperationsClick} />
-                                        <input type="button" className="btn btn-danger btn-xs sf-button" value="Register Expressions" onClick={this.handleRegisterExpressionsClick} />
+                                        {CustomCodeTab.suggestWorkflow && < input type="button" className="btn btn-success btn-sm sf-button" value="Workflow" onClick={this.handleWithWorkflowClick} />}
+                                        {CustomCodeTab.suggestTree && < input type="button" className="btn btn-info btn-sm sf-button" value="Tree" onClick={this.handleWithTreeClick} />}
+                                        <input type="button" className="btn btn-warning btn-sm sf-button" value="Register Operations" onClick={this.handleRegisterOperationsClick} />
+                                        <input type="button" className="btn btn-danger btn-sm sf-button" value="Register Expressions" onClick={this.handleRegisterExpressionsClick} />
                                     </div>}
                                 <div className="code-container">
-                                    <pre style={{ border: "0px", margin: "0px" }}>{`SchemaBuilder sb, DynamicQueryManager dqm, FluentInclude<${entityName}> fi`}</pre>
+                                    <pre style={{ border: "0px", margin: "0px" }}>{`SchemaBuilder sb, FluentInclude<${entityName}> fi`}</pre>
                                     <CSharpExpressionCodeMirror binding={Binding.create(e, d => d.code)} />
                                 </div>
                             </div>
@@ -419,8 +420,8 @@ export class CustomCodeTab extends React.Component<{ definition: DynamicTypeDefi
                         renderContent={e =>
                             <div>
                                 <div className="btn-group" style={{ marginBottom: "3px" }}>
-                                    {dt.baseType == "Entity" && <input type="button" className="btn btn-success btn-xs sf-button" value="Query Expression" onClick={this.handleQueryExpressionClick} />}
-                                    {dt.baseType == "Entity" || dt.baseType == "EmbeddedEntity" && <input type="button" className="btn btn-warning btn-xs sf-button" value="Scalar Expression" onClick={this.handleScalarExpressionClick} />}
+                                    {dt.baseType == "Entity" && <input type="button" className="btn btn-success btn-sm sf-button" value="Query Expression" onClick={this.handleQueryExpressionClick} />}
+                                    {dt.baseType == "Entity" || dt.baseType == "EmbeddedEntity" && <input type="button" className="btn btn-warning btn-sm sf-button" value="Scalar Expression" onClick={this.handleScalarExpressionClick} />}
                                 </div>
                                 <div className="code-container">
                                     <pre style={{ border: "0px", margin: "0px" }}>{`public static class ${dt.typeName}Logic
@@ -439,8 +440,8 @@ export class CustomCodeTab extends React.Component<{ definition: DynamicTypeDefi
                         renderContent={e =>
                             <div>
                                 <div className="btn-group" style={{ marginBottom: "3px" }}>
-                                    <input type="button" className="btn btn-success btn-xs sf-button" value="Enum" onClick={this.handleEnumClick} />
-                                    {dt.baseType == "Entity" && <input type="button" className="btn btn-warning btn-xs sf-button" value="Operation" onClick={this.handleOperationClick} />}
+                                    <input type="button" className="btn btn-success btn-sm sf-button" value="Enum" onClick={this.handleEnumClick} />
+                                    {dt.baseType == "Entity" && <input type="button" className="btn btn-warning btn-sm sf-button" value="Operation" onClick={this.handleOperationClick} />}
                                 </div>
                                 <div className="code-container">
                                     <pre style={{ border: "0px", margin: "0px" }}>{`public namespace Signum.Entities.CodeGen
@@ -460,7 +461,7 @@ export class CustomCodeTab extends React.Component<{ definition: DynamicTypeDefi
                         renderContent={e =>
                             <div>
                                 <div className="btn-group" style={{ marginBottom: "3px" }}>
-                                    <input type="button" className="btn btn-success btn-xs sf-button" value="Override" onClick={this.handleOverrideClick} />
+                                    <input type="button" className="btn btn-success btn-sm sf-button" value="Override" onClick={this.handleOverrideClick} />
                                 </div>
                                 <div className="code-container">
                                     <pre style={{ border: "0px", margin: "0px" }}>{`public void OverrideSchema(SchemaBuilder sb)
@@ -521,7 +522,7 @@ export class CustomCodeTab extends React.Component<{ definition: DynamicTypeDefi
     }
  
     return base.PropertyValidation(pi);
-};`);
+}`);
     }
 
     handleWithWorkflowClick = () => {
@@ -536,7 +537,7 @@ save: e => ${os ? `e.Execute(${entityName}Operation.Save)` : "e.Save()"}
     }
 
     handleWithTreeClick = () => {
-        this.popupCodeSnippet(`fi.WithTree(dqm);`);
+        this.popupCodeSnippet(`fi.WithTree();`);
     }
 
     handleRegisterOperationsClick = () => {
@@ -565,7 +566,7 @@ new Graph<${entityName}Entity>.Execute(${entityName}Operation.Save)
     handleRegisterExpressionsClick = () => {
 
         let entityName = this.props.dynamicType.typeName!;
-        this.popupCodeSnippet(`dqm.RegisterExpression((${entityName}Entity e) => e.[Expression Name]());`);
+        this.popupCodeSnippet(`QueryLogic.Expressions.Register((${entityName}Entity e) => e.[Expression Name]());`);
     }
 
     handleQueryExpressionClick = () => {
@@ -838,7 +839,7 @@ export class PropertyRepeaterComponent extends React.Component<PropertyRepeaterC
                 <a href="#" title="Create Property"
                     className="sf-line-button sf-create"
                     onClick={this.handleCreateClick}>
-                    <span className="fa fa-plus sf-create" />&nbsp;Create Property
+                    <FontAwesomeIcon icon="plus" className="sf-create" />&nbsp;Create Property
                 </a>
             </div>
         );
@@ -852,19 +853,19 @@ export class PropertyRepeaterComponent extends React.Component<PropertyRepeaterC
                     <a href="#" className={classes("sf-line-button", "sf-remove")}
                         onClick={e => this.handleOnRemove(e, i)}
                         title={EntityControlMessage.Remove.niceToString()}>
-                        <span className="fa fa-remove" />
+                        <FontAwesomeIcon icon="times" />
                     </a>
 
                     <a href="#" className={classes("sf-line-button", "move-up")}
                         onClick={e => this.handleOnMoveUp(e, i)}
                         title={EntityControlMessage.MoveUp.niceToString()}>
-                        <span className="fa fa-chevron-up" />
+                        <FontAwesomeIcon icon="chevron-up" />
                     </a>
 
                     <a href="#" className={classes("sf-line-button", "move-down")}
                         onClick={e => this.handleOnMoveDown(e, i)}
                         title={EntityControlMessage.MoveDown.niceToString()}>
-                        <span className="fa fa-chevron-down" />
+                        <FontAwesomeIcon icon="chevron-down" />
                     </a>
                 </span>
                 {" " + (p._propertyType_ || "") + " " + p.name}
@@ -916,6 +917,15 @@ export class PropertyComponent extends React.Component<PropertyComponentProps>{
                             <ValueComponent dc={this.props.dc} labelColumns={4} binding={Binding.create(p, d => d.columnType)} type="string" defaultValue={null} labelClass="database-mapping" />
                         }
                         <ValueComponent dc={this.props.dc} labelColumns={4} binding={Binding.create(p, d => d.isNullable)} type="string" defaultValue={null} options={DynamicTypeClient.IsNullableValues} onChange={this.handleAutoFix} />
+                        {allowUnit(p.type) &&
+                            <ValueComponent dc={this.props.dc} labelColumns={4} binding={Binding.create(p, d => d.unit)} type="string" defaultValue={null} />
+                        }
+                        {allowFormat(p.type) &&
+                            <ValueComponent dc={this.props.dc} labelColumns={4} binding={Binding.create(p, d => d.format)} type="string" defaultValue={null} />
+                        }
+                        {(p.isMList || isEmbedded(p.type)) &&
+                            <ValueComponent dc={this.props.dc} labelColumns={4} binding={Binding.create(p, d => d.notifyChanges)} type="boolean" defaultValue={null} />
+                        }
                     </div>
                     <div className="col-sm-6">
                         <IsMListFieldsetComponent
@@ -949,7 +959,9 @@ export class PropertyComponent extends React.Component<PropertyComponentProps>{
                         </div>}
                     </div>
                 </div >
-                <ValueComponent dc={this.props.dc} labelColumns={2} binding={Binding.create(p, d => d.customAttributes)} type="string" defaultValue={null} onBlur={this.handleAutoFix} />
+                <br />
+                <ValueComponent dc={this.props.dc} labelColumns={3} binding={Binding.create(p, d => d.customFieldAttributes)} type="string" defaultValue={null} onBlur={this.handleAutoFix} />
+                <ValueComponent dc={this.props.dc} labelColumns={3} binding={Binding.create(p, d => d.customPropertyAttributes)} type="string" defaultValue={null} onBlur={this.handleAutoFix} />
                 <ValidatorRepeaterComponent dc={this.props.dc} property={this.props.property} />
             </div>
         );
@@ -1046,10 +1058,21 @@ function autoFix(p: DynamicProperty) {
 
     if (p.validators.length == 0)
         delete p.validators;
+
+    if (p.unit != undefined && !allowUnit(p.type))
+        p.unit = undefined;
+
+    if (p.format != undefined && !allowFormat(p.type))
+        p.format = undefined;
+
+    if (p.isMList || isEmbedded(p.type))
+        p.notifyChanges = true;
+    else
+        p.notifyChanges = undefined;
 }
 
 function allowsSize(type: string) {
-    return isString(type) || isDecimal(type);
+    return isString(type) || isReal(type);
 }
 
 
@@ -1106,7 +1129,7 @@ export class ComboBoxRepeaterComponent extends React.Component<ComboBoxRepeaterC
                                 <a href="#" title="Create Query Column"
                                     className="sf-line-button sf-create"
                                     onClick={this.handleCreateClick}>
-                                    <span className="fa fa-plus sf-create" />&nbsp;Create Query Column
+                                    <FontAwesomeIcon icon="plus" className="sf-create" />&nbsp;Create Query Column
                                 </a>
                             </td>
                         </tr>
@@ -1124,19 +1147,19 @@ export class ComboBoxRepeaterComponent extends React.Component<ComboBoxRepeaterC
                         <a href="#" className={classes("sf-line-button", "sf-remove")}
                             onClick={e => this.handleOnRemove(e, i)}
                             title={EntityControlMessage.Remove.niceToString()}>
-                            <span className="fa fa-remove" />
+                            <FontAwesomeIcon icon="times" />
                         </a>
 
                         <a href="#" className={classes("sf-line-button", "move-up")}
                             onClick={e => this.handleOnMoveUp(e, i)}
                             title={EntityControlMessage.MoveUp.niceToString()}>
-                            <span className="fa fa-chevron-up" />
+                            <FontAwesomeIcon icon="chevron-up" />
                         </a>
 
                         <a href="#" className={classes("sf-line-button", "move-down")}
                             onClick={e => this.handleOnMoveDown(e, i)}
                             title={EntityControlMessage.MoveDown.niceToString()}>
-                            <span className="fa fa-chevron-down" />
+                            <FontAwesomeIcon icon="chevron-down" />
                         </a>
                     </span>
                 </td>
@@ -1206,7 +1229,7 @@ export class ValidatorRepeaterComponent extends React.Component<ValidatorRepeate
                 <a href="#" title="Create Validator"
                     className="sf-line-button sf-create"
                     onClick={this.handleCreateClick}>
-                    <span className="fa fa-plus sf-create" />&nbsp;Create Validator
+                    <FontAwesomeIcon icon="plus" className="sf-create"/>&nbsp;Create Validator
                 </a>
             </div>
         );
@@ -1219,7 +1242,7 @@ export class ValidatorRepeaterComponent extends React.Component<ValidatorRepeate
                     <a href="#" className={classes("sf-line-button", "sf-remove")}
                         onClick={e => this.handleOnRemove(e, i)}
                         title={EntityControlMessage.Remove.niceToString()}>
-                        <span className="fa fa-remove" />
+                        <FontAwesomeIcon icon="times" />
                     </a>
                 </span>
                 {" "}
@@ -1258,7 +1281,7 @@ function isInteger(type: string) {
     );
 }
 
-function isDecimal(type: string) {
+function isReal(type: string) {
     return (
         type == "float" || type == "System.Single" ||
         type == "double" || type == "System.Double" ||
@@ -1266,8 +1289,32 @@ function isDecimal(type: string) {
     );
 }
 
+function isDecimal(type: string) {
+    return (
+        type == "decimal" || type == "System.Decimal"
+    );
+}
+
+function allowUnit(type: string) {
+    return isInteger(type) ||
+        isDecimal(type) ||
+        isReal(type);
+}
+
+function allowFormat(type: string) {
+    return isInteger(type) ||
+        isDecimal(type) ||
+        isReal(type) ||
+        isDateTime(type) ||
+        isTimeSpan(type);
+}
+
 function isEntity(type: string) {
     return type.endsWith("Entity");
+}
+
+function isEmbedded(type: string) {
+    return type.endsWith("Embedded");
 }
 
 export interface ValidatorOptions<T extends Validators.DynamicValidator> {
@@ -1357,7 +1404,7 @@ registerValidator<Validators.TimeSpanPrecision>({
 
 registerValidator<Validators.Decimals>({
     name: "Decimals",
-    allowed: p => !p.isMList && isDecimal(p.type),
+    allowed: p => !p.isMList && isReal(p.type),
     render: (val, dc) =>
         <div>
             <ValueComponent dc={dc} binding={Binding.create(val, v => v.decimalPlaces)} type="number" defaultValue={null} />

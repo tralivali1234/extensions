@@ -1,35 +1,37 @@
 ﻿import * as React from 'react'
 import * as numbro from 'numbro';
-import * as OrderUtils from '../../../../Framework/Signum.React/Scripts/Frames/OrderUtils'
-import { classes } from '../../../../Framework/Signum.React/Scripts/Globals'
-import { Tab, Tabs, UncontrolledTabs } from '../../../../Framework/Signum.React/Scripts/Components/Tabs'
-import { FormGroup, FormControlReadonly, ValueLine, ValueLineType, EntityLine, EntityDetail, EntityCombo, EntityList, EntityRepeater, EntityTable, IRenderButtons, EntityTabRepeater } from '../../../../Framework/Signum.React/Scripts/Lines'
-import { SearchControl, FilterOption, ColumnOption, FindOptions } from '../../../../Framework/Signum.React/Scripts/Search'
-import { TypeContext, FormGroupStyle, ButtonsContext } from '../../../../Framework/Signum.React/Scripts/TypeContext'
+import * as OrderUtils from '@framework/Frames/OrderUtils'
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import { classes } from '@framework/Globals'
+import { Tab, Tabs, UncontrolledTabs } from '@framework/Components/Tabs'
+import { FormGroup, FormControlReadonly, ValueLine, ValueLineType, EntityLine, EntityDetail, EntityCombo, EntityList, EntityRepeater, EntityTable, IRenderButtons, EntityTabRepeater } from '@framework/Lines'
+import { SearchControl, FilterOption, ColumnOption, FindOptions } from '@framework/Search'
+import { TypeContext, FormGroupStyle, ButtonsContext } from '@framework/TypeContext'
 import FileLine from '../../Files/FileLine'
-import { PredictorEntity, PredictorColumnEmbedded, PredictorMessage, PredictorSubQueryEntity, PredictorFileType, PredictorCodificationEntity, PredictorSubQueryColumnEmbedded, PredictorEpochProgressEntity, NeuralNetworkSettingsEntity } from '../Signum.Entities.MachineLearning'
-import * as Finder from '../../../../Framework/Signum.React/Scripts/Finder'
-import * as Navigator from '../../../../Framework/Signum.React/Scripts/Navigator'
-import { getQueryNiceName } from '../../../../Framework/Signum.React/Scripts/Reflection'
+import { PredictorEntity, PredictorColumnEmbedded, PredictorMessage, PredictorSubQueryEntity, PredictorFileType, PredictorCodificationEntity, PredictorSubQueryColumnEmbedded, PredictorEpochProgressEntity, NeuralNetworkSettingsEntity, DefaultColumnEncodings } from '../Signum.Entities.MachineLearning'
+import * as Finder from '@framework/Finder'
+import * as Navigator from '@framework/Navigator'
+import { getQueryNiceName } from '@framework/Reflection'
 import QueryTokenEntityBuilder from '../../UserAssets/Templates/QueryTokenEntityBuilder'
 import { QueryFilterEmbedded } from '../../UserQueries/Signum.Entities.UserQueries'
-import { QueryDescription, SubTokensOptions } from '../../../../Framework/Signum.React/Scripts/FindOptions'
+import { QueryDescription, SubTokensOptions } from '@framework/FindOptions'
 import * as PredictorClient from '../PredictorClient';
-import { toLite } from "../../../../Framework/Signum.React/Scripts/Signum.Entities";
-import FilterBuilder from '../../../../Framework/Signum.React/Scripts/SearchControl/FilterBuilder';
-import { MList, newMListElement } from '../../../../Framework/Signum.React/Scripts/Signum.Entities';
-import FilterBuilderEmbedded from './FilterBuilderEmbedded';
+import { toLite } from "@framework/Signum.Entities";
+import FilterBuilder from '@framework/SearchControl/FilterBuilder';
+import { MList, newMListElement } from '@framework/Signum.Entities';
+import FilterBuilderEmbedded from '../../UserAssets/Templates/FilterBuilderEmbedded';
 import PredictorSubQuery from './PredictorSubQuery';
 import { QueryTokenEmbedded } from '../../UserAssets/Signum.Entities.UserAssets';
-import { QueryEntity } from '../../../../Framework/Signum.React/Scripts/Signum.Entities.Basics';
+import { QueryEntity } from '@framework/Signum.Entities.Basics';
 import { FilePathEmbedded } from '../../Files/Signum.Entities.Files';
-import { is } from '../../../../Framework/Signum.React/Scripts/Signum.Entities';
+import { is } from '@framework/Signum.Entities';
 import ProgressBar from './ProgressBar'
 import LineChart, { LineChartSerie } from './LineChart'
-import { QueryToken } from '../../../../Framework/Signum.React/Scripts/FindOptions';
+import { QueryToken } from '@framework/FindOptions';
 import PredictorMetrics from './PredictorMetrics';
 import PredictorClassificationMetrics from './PredictorClassificationMetrics';
 import PredictorRegressionMetrics from './PredictorRegressionMetrics';
+import { CellFormatter, toFilterOptions } from '@framework/Finder';
 
 export default class Predictor extends React.Component<{ ctx: TypeContext<PredictorEntity> }, { queryDescription?: QueryDescription }> implements IRenderButtons {
 
@@ -42,9 +44,9 @@ export default class Predictor extends React.Component<{ ctx: TypeContext<Predic
             Finder.find({
                 queryName: this.state.queryDescription!.queryKey,
                 columnOptionsMode: "Add",
-                columnOptions: p.mainQuery.columns.map(mle => ({ columnName: mle.element.token && mle.element.token.token!.fullKey }) as ColumnOption)
+                columnOptions: p.mainQuery.columns.map(mle => ({ token: mle.element.token && mle.element.token.token!.fullKey }) as ColumnOption)
             })
-                .then(lite => PredictorClient.predict(toLite(p), lite && { "Entity": lite }))
+                .then(lite => PredictorClient.predict(p, lite && { "Entity": lite }))
                 .done();
 
         } else {
@@ -55,16 +57,16 @@ export default class Predictor extends React.Component<{ ctx: TypeContext<Predic
                 queryName: this.state.queryDescription!.queryKey,
                 groupResults: p.mainQuery.groupResults,
                 columnOptionsMode: "Replace",
-                columnOptions: fullKeys.map(fk => ({ columnName: fk }) as ColumnOption)
+                columnOptions: fullKeys.map(fk => ({ token: fk }) as ColumnOption)
             }, { searchControlProps: { allowChangeColumns: false, showGroupButton: false } })
-                .then(row => PredictorClient.predict(toLite(p), row && fullKeys.map((fk, i) => ({ tokenString: fk, value: row!.columns[i] })).toObject(a => a.tokenString, a => a.value)))
+                .then(row => PredictorClient.predict(p, row && fullKeys.map((fk, i) => ({ tokenString: fk, value: row!.columns[i] })).toObject(a => a.tokenString, a => a.value)))
                 .done();
         }
     }
 
     renderButtons(ctx: ButtonsContext): (React.ReactElement<any> | undefined)[] {
         if ((ctx.pack.entity as PredictorEntity).state == "Trained") {
-            return [OrderUtils.setOrder(10000, <button className="btn btn-info" onClick={this.handleClick}><i className="fa fa-lightbulb-o"></i>&nbsp;{PredictorMessage.Predict.niceToString()}</button >)];
+            return [OrderUtils.setOrder(10000, <button className="btn btn-info" onClick={this.handleClick}><FontAwesomeIcon icon={["far", "lightbulb"]} />&nbsp;{PredictorMessage.Predict.niceToString()}</button >)];
         } else {
             return [];
         }
@@ -168,13 +170,9 @@ export default class Predictor extends React.Component<{ ctx: TypeContext<Predic
                 var fo: FindOptions = {
                     queryName: mq.query!.key,
                     groupResults: mq.groupResults,
-                    filterOptions: filters.map(f => ({
-                        columnName: f.token!.fullKey,
-                        operation: f.operation,
-                        value: f.value
-                    }) as FilterOption),
+                    filterOptions: toFilterOptions(filters),
                     columnOptions: mq.columns.orderBy(mle => mle.element.usage == "Input" ? 0 : 1).map(mle => ({
-                        columnName: mle.element.token && mle.element.token.tokenString,
+                        token: mle.element.token && mle.element.token.tokenString,
                     } as ColumnOption)),
                     columnOptionsMode: "Replace",
                 };
@@ -258,13 +256,13 @@ export default class Predictor extends React.Component<{ ctx: TypeContext<Predic
                     </Tab>
                     {
                         ctx.value.state != "Draft" && <Tab eventKey="codifications" title={PredictorMessage.Codifications.niceToString()}>
-                            <SearchControl findOptions={{ queryName: PredictorCodificationEntity, parentColumn: "Predictor", parentValue: ctx.value }} />
+                            <SearchControl findOptions={{ queryName: PredictorCodificationEntity, parentToken: "Predictor", parentValue: ctx.value }} />
                         </Tab>
                     }
                     {
                         ctx.value.state != "Draft" && <Tab eventKey="progress" title={PredictorMessage.Progress.niceToString()}>
                             {ctx.value.state == "Trained" && <EpochProgressComponent ctx={ctx} />}
-                            <SearchControl findOptions={{ queryName: PredictorEpochProgressEntity, parentColumn: "Predictor", parentValue: ctx.value }} />
+                            <SearchControl findOptions={{ queryName: PredictorEpochProgressEntity, parentToken: "Predictor", parentValue: ctx.value }} />
                         </Tab>
                     }
                     {
@@ -288,9 +286,9 @@ export function initializeColumn(p: PredictorEntity, pc: PredictorColumnEmbedded
     var token = pc.token && pc.token.token;
     if (token) {
         pc.encoding =
-            token.type.name == "number" || token.type.name == "decimal" ? "NormalizeZScore" :
-                NeuralNetworkSettingsEntity.isInstance(p.algorithmSettings) ? (token.type.name == "boolean" ? "None" : "OneHot") :
-                    "Codified";
+            token.type.name == "number" || token.type.name == "decimal" ? DefaultColumnEncodings.NormalizeZScore :
+                token.type.name == "boolean" ? DefaultColumnEncodings.None :
+                    DefaultColumnEncodings.OneHot;
 
         pc.nullHandling = "Zero";
     }
@@ -411,41 +409,46 @@ function getSeries(eps: Array<PredictorClient.EpochProgress>, predictor: Predict
 
     const algSet = predictor.algorithmSettings;
 
-    const isClassification = NeuralNetworkSettingsEntity.isInstance(algSet) && algSet.predictionType == "Classification";
+    const nns = NeuralNetworkSettingsEntity.isInstance(algSet) ? algSet : undefined;
 
-    var totalMax = isClassification ? undefined : eps.flatMap(a => [a.LossTraining, a.LossValidation]).filter(a => a != null).max();
+    var maxLoss = eps.flatMap(a => [a.LossTraining, a.LossValidation]).filter(a => a != null).max();
+    var maxEvaluation = eps.flatMap(a => [a.EvaluationTraining, a.EvaluationValidation]).filter(a => a != null).max();
 
     return [
         {
-            color: "black",
             name: PredictorEpochProgressEntity.nicePropertyName(a => a.lossTraining),
+            title: nns && nns!.lossFunction,
+            color: "#1A5276",
             values: eps.filter(a => a.LossTraining != null).map(ep => ({ x: ep.TrainingExamples, y: ep.LossTraining })),
             minValue: 0,
-            maxValue: totalMax,
+            maxValue: maxLoss,
             strokeWidth: "2px",
         },
         {
-            color: "darkgray",
+            name: PredictorEpochProgressEntity.nicePropertyName(a => a.lossValidation),
+            title: nns && nns!.lossFunction,
+            color: "#5DADE2",
+            values: eps.filter(a => a.LossValidation != null).map(ep => ({ x: ep.TrainingExamples, y: ep.LossValidation! })),
+            minValue: 0,
+            maxValue: maxLoss,
+            strokeWidth: "2px",
+        },
+        {
             name: PredictorEpochProgressEntity.nicePropertyName(a => a.evaluationTraining),
+            title: nns && nns!.evalErrorFunction,
+            color: "#731c7b",
             values: eps.filter(a => a.EvaluationTraining != null).map(ep => ({ x: ep.TrainingExamples, y: ep.EvaluationTraining })),
             minValue: 0,
-            maxValue: isClassification ? 1 : totalMax,
+            maxValue: maxEvaluation,
             strokeWidth: "1px",
         },
         {
-            color: "red",
-            name: PredictorEpochProgressEntity.nicePropertyName(a => a.lossValidation),
-            values: eps.filter(a => a.LossValidation != null).map(ep => ({ x: ep.TrainingExamples, y: ep.LossValidation! })),
-            minValue: 0,
-            maxValue: totalMax,
-            strokeWidth: "2px",
-        },
-        {
-            color: "pink",
             name: PredictorEpochProgressEntity.nicePropertyName(a => a.evaluationValidation),
+            title: nns && nns!.evalErrorFunction,
+            color: "#d980d9",
             values: eps.filter(a => a.EvaluationValidation != null).map(ep => ({ x: ep.TrainingExamples, y: ep.EvaluationValidation! })),
             minValue: 0,
-            maxValue: isClassification ? 1 : totalMax,
+            maxValue: maxEvaluation,
             strokeWidth: "1px",
         }
     ];

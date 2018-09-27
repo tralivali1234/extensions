@@ -26,7 +26,7 @@ namespace Signum.Engine.Mailing
     public static class NewsletterLogic
     {
         static Expression<Func<IEmailOwnerEntity, IQueryable<NewsletterDeliveryEntity>>> NewsletterDeliveriesExpression =
-            eo => Database.Query<NewsletterDeliveryEntity>().Where(d => d.Recipient.RefersTo(eo));
+            eo => Database.Query<NewsletterDeliveryEntity>().Where(d => d.Recipient.Is(eo));
         [ExpressionField]
         public static IQueryable<NewsletterDeliveryEntity> NewsletterDeliveries(this IEmailOwnerEntity eo)
         {
@@ -34,7 +34,7 @@ namespace Signum.Engine.Mailing
         }
 
         static Expression<Func<NewsletterEntity, IQueryable<NewsletterDeliveryEntity>>> DeliveriesExpression =
-            n => Database.Query<NewsletterDeliveryEntity>().Where(nd => nd.Newsletter.RefersTo(n));
+            n => Database.Query<NewsletterDeliveryEntity>().Where(nd => nd.Newsletter.Is(n));
         [ExpressionField]
         public static IQueryable<NewsletterDeliveryEntity> Deliveries(this NewsletterEntity n)
         {
@@ -43,7 +43,7 @@ namespace Signum.Engine.Mailing
         
         public static Func<NewsletterEntity, SmtpConfigurationEntity> GetStmpConfiguration;
 
-        public static void Start(SchemaBuilder sb, DynamicQueryManager dqm, Func<NewsletterEntity, SmtpConfigurationEntity> getSmtpConfiguration)
+        public static void Start(SchemaBuilder sb, Func<NewsletterEntity, SmtpConfigurationEntity> getSmtpConfiguration)
         {
             if (sb.NotDefined(MethodInfo.GetCurrentMethod()))
             {
@@ -55,7 +55,7 @@ namespace Signum.Engine.Mailing
                 ProcessLogic.AssertStarted(sb);
                 ProcessLogic.Register(NewsletterProcess.SendNewsletter, new NewsletterProcessAlgorithm());
 
-                dqm.RegisterQuery(typeof(NewsletterEntity), () =>
+                QueryLogic.Queries.Register(typeof(NewsletterEntity), () =>
                  from n in Database.Query<NewsletterEntity>()
                  let p = n.LastProcess()
                  select new
@@ -71,7 +71,7 @@ namespace Signum.Engine.Mailing
                      NumErrors = n.Deliveries().Count(d => d.Exception(p) != null)
                  });           
 
-                dqm.RegisterQuery(typeof(NewsletterDeliveryEntity), () =>
+                QueryLogic.Queries.Register(typeof(NewsletterDeliveryEntity), () =>
                     from e in Database.Query<NewsletterDeliveryEntity>()
                     let p = e.Newsletter.Entity.LastProcess()
                     select new
@@ -101,7 +101,7 @@ namespace Signum.Engine.Mailing
         {
             var queryName = QueryLogic.ToQueryName(newsletter.Query.Key);
 
-            QueryDescription qd = DynamicQueryManager.Current.QueryDescription(queryName);
+            QueryDescription qd = QueryLogic.Queries.QueryDescription(queryName);
 
             try
             {
@@ -119,7 +119,7 @@ namespace Signum.Engine.Mailing
         static void Newsletter_PreSaving(NewsletterEntity newsletter, PreSavingContext ctx)
         {
             var queryname = QueryLogic.ToQueryName(newsletter.Query.Key);
-            QueryDescription qd = DynamicQueryManager.Current.QueryDescription(queryname);
+            QueryDescription qd = QueryLogic.Queries.QueryDescription(queryname);
 
             newsletter.Subject = EmailTemplateParser.Parse(newsletter.Subject, qd, null).ToString();
             newsletter.Text = EmailTemplateParser.Parse(newsletter.Text, qd, null).ToString();
@@ -148,8 +148,8 @@ namespace Signum.Engine.Mailing
 
             new Execute(NewsletterOperation.Save)
             {
-                AllowsNew = true,
-                Lite = false,
+                CanBeNew = true,
+                CanBeModified = true,
                 FromStates = { NewsletterState.Created, NewsletterState.Saved },
                 ToStates = { NewsletterState.Saved },
                 Execute = (n, _) => n.State = NewsletterState.Saved
@@ -162,7 +162,7 @@ namespace Signum.Engine.Mailing
                 Execute = (n, args) =>
                 {
                     var p = args.GetArg<List<Lite<IEmailOwnerEntity>>>();
-                    var existent = Database.Query<NewsletterDeliveryEntity>().Where(d => d.Newsletter.RefersTo(n)).Select(d => d.Recipient).ToList();
+                    var existent = Database.Query<NewsletterDeliveryEntity>().Where(d => d.Newsletter.Is(n)).Select(d => d.Recipient).ToList();
                     p.Except(existent).Select(ie => new NewsletterDeliveryEntity
                     {
                         Recipient = ie,
@@ -199,7 +199,7 @@ namespace Signum.Engine.Mailing
                     if (n.Text.IsNullOrEmpty())
                         return "Text must be set";
 
-                    if (!Database.Query<NewsletterDeliveryEntity>().Any(d => d.Newsletter.RefersTo(n)))
+                    if (!Database.Query<NewsletterDeliveryEntity>().Any(d => d.Newsletter.Is(n)))
                         return "There is not any delivery for this newsletter";
 
                     return null;
@@ -227,7 +227,7 @@ namespace Signum.Engine.Mailing
 
             var queryName = QueryLogic.ToQueryName(newsletter.Query.Key);
 
-            QueryDescription qd = DynamicQueryManager.Current.QueryDescription(queryName);
+            QueryDescription qd = QueryLogic.Queries.QueryDescription(queryName);
 
             List<QueryToken> list = new List<QueryToken>();
 
@@ -253,13 +253,13 @@ namespace Signum.Engine.Mailing
 
             columns = columns.Distinct().ToList();
 
-            var resultTable = DynamicQueryManager.Current.ExecuteQuery(new QueryRequest
+            var resultTable = QueryLogic.Queries.ExecuteQuery(new QueryRequest
             {
                 QueryName = queryName,
                 Filters = new List<Filter>
                 {
-                    new Filter(QueryUtils.Parse("Entity.NewsletterDeliveries.Element.Newsletter", qd, SubTokensOptions.CanElement),  FilterOperation.EqualTo, newsletter.ToLite()),
-                    new Filter(QueryUtils.Parse("Entity.NewsletterDeliveries.Element.Sent", qd, SubTokensOptions.CanElement), FilterOperation.EqualTo, false),
+                    new FilterCondition(QueryUtils.Parse("Entity.NewsletterDeliveries.Element.Newsletter", qd, SubTokensOptions.CanElement),  FilterOperation.EqualTo, newsletter.ToLite()),
+                    new FilterCondition(QueryUtils.Parse("Entity.NewsletterDeliveries.Element.Sent", qd, SubTokensOptions.CanElement), FilterOperation.EqualTo, false),
                 },
                 Orders = new List<Order>(),
                 Columns = columns,

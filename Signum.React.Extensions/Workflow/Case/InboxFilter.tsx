@@ -1,14 +1,14 @@
 ﻿import * as React from 'react'
 import * as moment from 'moment'
-import { Binding, LambdaMemberType } from '../../../../Framework/Signum.React/Scripts/Reflection'
-import { Dic } from '../../../../Framework/Signum.React/Scripts/Globals'
-import { newMListElement } from '../../../../Framework/Signum.React/Scripts/Signum.Entities'
+import { Binding, MemberType } from '@framework/Reflection'
+import { Dic } from '@framework/Globals'
+import { newMListElement } from '@framework/Signum.Entities'
 import { InboxFilterModel, InboxMessage, CaseNotificationState } from '../Signum.Entities.Workflow'
-import { TypeContext, ValueLine, EntityLine, EntityCombo, EntityList, EntityDetail, EntityStrip, EntityRepeater, EnumCheckboxList, FormGroup, FormGroupStyle, StyleContext } from '../../../../Framework/Signum.React/Scripts/Lines'
-import { SearchControl, ValueSearchControl, FilterOperation, OrderType, PaginationMode, ISimpleFilterBuilder, extractFilterValue, FilterOption, FindOptionsParsed } from '../../../../Framework/Signum.React/Scripts/Search'
-import { FilterOptionParsed } from "../../../../Framework/Signum.React/Scripts/FindOptions";
+import { TypeContext, ValueLine, EntityLine, EntityCombo, EntityList, EntityDetail, EntityStrip, EntityRepeater, EnumCheckboxList, FormGroup, FormGroupStyle, StyleContext } from '@framework/Lines'
+import { SearchControl, ValueSearchControl, FilterOperation, OrderType, PaginationMode, ISimpleFilterBuilder, extractFilterValue, FilterOption, FindOptionsParsed } from '@framework/Search'
+import { FilterOptionParsed } from "@framework/FindOptions";
 import CollapsableCard from "../../Basics/Templates/CollapsableCard";
-import { Button } from '../../../../Framework/Signum.React/Scripts/Components';
+import { Button } from '@framework/Components';
 
 export default class InboxFilter extends React.Component<{ ctx: TypeContext<InboxFilterModel> }> implements ISimpleFilterBuilder {
 
@@ -61,7 +61,6 @@ export default class InboxFilter extends React.Component<{ ctx: TypeContext<Inbo
     }
 
     getFilters(): FilterOption[] {
-
         var result: FilterOption[] = [];
 
         var val = this.props.ctx.value;
@@ -96,20 +95,20 @@ export default class InboxFilter extends React.Component<{ ctx: TypeContext<Inbo
             }
 
             if (fromDate && fromDate.length > 0)
-                result.push({ columnName: "StartDate", operation: "GreaterThanOrEqual", value: fromDate });
+                result.push({ token: "StartDate", operation: "GreaterThanOrEqual", value: fromDate });
 
             if (toDate && toDate.length > 0)
-                result.push({ columnName: "StartDate", operation: "LessThanOrEqual", value: toDate });
+                result.push({ token: "StartDate", operation: "LessThanOrEqual", value: toDate });
         }
 
         if (val.states)
-            result.push({ columnName: "State", operation: "IsIn", value: val.states.map(elm => elm.element) });
+            result.push({ token: "State", operation: "IsIn", value: val.states.map(elm => elm.element) });
 
         if (val.fromDate)
-            result.push({ columnName: "StartDate", value: val.fromDate, operation: "GreaterThanOrEqual" });
+            result.push({ token: "StartDate", value: val.fromDate, operation: "GreaterThanOrEqual" });
 
         if (val.toDate)
-            result.push({ columnName: "StartDate", value: val.toDate, operation: "LessThanOrEqual" });
+            result.push({ token: "StartDate", value: val.toDate, operation: "LessThanOrEqual" });
 
         return result;
     }

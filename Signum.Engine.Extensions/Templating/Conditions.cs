@@ -21,7 +21,7 @@ namespace Signum.Engine.Templating
 
         public abstract bool Evaluate(TemplateParameters p);
 
-        public abstract void Synchronize(SyncronizationContext sc, string remainingText);
+        public abstract void Synchronize(SynchronizationContext sc, string remainingText);
 
         public abstract void Declare(ScopedDictionary<string, ValueProviderBase> variables);
         
@@ -84,7 +84,7 @@ namespace Signum.Engine.Templating
             this.RightNode.FillQueryTokens(tokens);
         }
 
-        public override void Synchronize(SyncronizationContext sc, string remainingText)
+        public override void Synchronize(SynchronizationContext sc, string remainingText)
         {
             this.LeftNode.Synchronize(sc, remainingText);
             this.RightNode.Synchronize(sc, remainingText);
@@ -134,7 +134,7 @@ namespace Signum.Engine.Templating
             this.RightNode.FillQueryTokens(tokens);
         }
 
-        public override void Synchronize(SyncronizationContext sc, string remainingText)
+        public override void Synchronize(SynchronizationContext sc, string remainingText)
         {
             this.LeftNode.Synchronize(sc, remainingText);
             this.RightNode.Synchronize(sc, remainingText);
@@ -202,7 +202,7 @@ namespace Signum.Engine.Templating
 
                 Expression token = Expression.Constant(obj, type);
 
-                Expression value = Expression.Constant(FilterValueConverter.Parse(Value, type, Operation.Value.IsList(), allowSmart: true), type);
+                Expression value = Expression.Constant(FilterValueConverter.Parse(Value, type, Operation.Value.IsList()), type);
 
                 Expression newBody = QueryUtils.GetCompareExpression(Operation.Value, token, value, inMemory: true);
                 var lambda = Expression.Lambda<Func<bool>>(newBody).Compile();
@@ -226,7 +226,7 @@ namespace Signum.Engine.Templating
             return true;
         }
 
-        public override void Synchronize(SyncronizationContext sc, string remainingText)
+        public override void Synchronize(SynchronizationContext sc, string remainingText)
         {
             this.ValueProvider.Synchronize(sc, remainingText);
 
@@ -282,7 +282,7 @@ namespace Signum.Engine.Templating
             {
                 var type = this.ValueProvider.Type;
 
-                object val = FilterValueConverter.Parse(Value, type, Operation.Value.IsList(), allowSmart: true);
+                object val = FilterValueConverter.Parse(Value, type, Operation.Value.IsList());
 
                 Expression value = Expression.Constant(val, type);
 
